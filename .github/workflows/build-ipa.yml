@@ -2,7 +2,11 @@ name: Build IPA
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   iphone:
@@ -78,3 +82,23 @@ jobs:
         with:
           name: LynxDash-Watch-ipa
           path: LynxDash-Watch.ipa
+
+  publish:
+    name: Déposer les IPA dans la branche "ipa"
+    needs: [iphone, iphone-watch]
+    if: always() && needs.iphone.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+      - name: Publier
+        run: |
+          mkdir site && cd site
+          find ../out -name "*.ipa" -exec cp {} . \;
+          git init -q -b ipa
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "IPA ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ipa
