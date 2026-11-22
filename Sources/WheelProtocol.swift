@@ -1,7 +1,7 @@
 import Foundation
 
 enum WheelBrand: String, CaseIterable, Identifiable {
-    case auto, leaperkim, begode, kingsong
+    case auto, leaperkim, begode, kingsong, inmotion
 
     var id: String { rawValue }
 
@@ -11,6 +11,7 @@ enum WheelBrand: String, CaseIterable, Identifiable {
         case .leaperkim: return "Leaperkim / Veteran / Nosfet"
         case .begode: return "Begode / Gotway / Extreme Bull"
         case .kingsong: return "Kingsong"
+        case .inmotion: return "InMotion P6"
         }
     }
 
@@ -20,6 +21,7 @@ enum WheelBrand: String, CaseIterable, Identifiable {
         case .leaperkim: return "Leaperkim"
         case .begode: return "Begode"
         case .kingsong: return "Kingsong"
+        case .inmotion: return "InMotion"
         }
     }
 }
@@ -118,12 +120,17 @@ protocol WheelProtocol: AnyObject {
     var supportsEventLog: Bool { get }
     func eventLogRequest() -> [WheelCommand]
     func drainEvents() -> [VeteranEvent]
+    /// Protocoles requête / réponse (InMotion) : prochaine requête à envoyer.
+    var usesPolling: Bool { get }
+    func poll(now: Date) -> [UInt8]?
 }
 
 extension WheelProtocol {
     var supportsEventLog: Bool { false }
     func eventLogRequest() -> [WheelCommand] { [] }
     func drainEvents() -> [VeteranEvent] { [] }
+    var usesPolling: Bool { false }
+    func poll(now: Date) -> [UInt8]? { nil }
 }
 
 enum ProtocolDetector {
@@ -152,6 +159,7 @@ enum ProtocolDetector {
         case .leaperkim: return VeteranDecoder()
         case .begode: return BegodeProtocol()
         case .kingsong: return KingsongProtocol()
+        case .inmotion: return InMotionProtocol()
         case .auto: return nil
         }
     }

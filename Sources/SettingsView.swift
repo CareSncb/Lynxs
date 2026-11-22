@@ -35,7 +35,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Roue")
                 } footer: {
-                    Text("InMotion n'est pas encore géré.")
+                    Text("InMotion : seule la P6 est gérée. La P6 ne communique pas sa limite actuelle : règle ta « Limite normale » ci-dessous avant le premier bridage pour pouvoir débrider ensuite.")
                 }
 
                 Section {

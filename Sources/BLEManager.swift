@@ -28,6 +28,10 @@ final class BLEManager: NSObject, ObservableObject {
     // Service UART BLE commun aux roues Leaperkim, Begode et Kingsong
     static let serviceUUID = CBUUID(string: "FFE0")
     static let characteristicUUID = CBUUID(string: "FFE1")
+    // Nordic UART (InMotion)
+    static let nordicService = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
+    static let nordicWrite = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+    static let nordicNotify = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 
     @Published var state: ConnectionState = .idle
     @Published var discovered: [DiscoveredWheel] = []
@@ -117,6 +121,7 @@ final class BLEManager: NSObject, ObservableObject {
         case .leaperkim, .auto: return 36   // Lynx S : 151,2 V
         case .begode: return 24             // 100,8 V
         case .kingsong: return 20           // 84 V
+        case .inmotion: return 36
         }
     }
 
@@ -134,6 +139,8 @@ final class BLEManager: NSObject, ObservableObject {
     private var pendingPeripherals: [UUID: CBPeripheral] = [:]
     private var peripheral: CBPeripheral?
     private var characteristic: CBCharacteristic?
+    private var writeCharacteristic: CBCharacteristic?
+    private var pollTimer: Timer?
     private var proto: WheelProtocol?
     private var detectBuffer: [UInt8] = []
     private var userDisconnected = false
@@ -183,6 +190,8 @@ final class BLEManager: NSObject, ObservableObject {
         cellCount = cells
         applyingProfile = false
         p.cellCount = cells
+        (p as? InMotionProtocol)?.restoreKnownLimit()
+        startPollingIfNeeded()
         send(p.initialCommands())
     }
 
@@ -415,8 +424,19 @@ final class BLEManager: NSObject, ObservableObject {
 
     // MARK: - Envoi
 
+    private func startPollingIfNeeded() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+        guard proto?.usesPolling == true else { return }
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self, self.state == .connected, self.writeCharacteristic != nil,
+                  let bytes = self.proto?.poll(now: Date()) else { return }
+            self.write(bytes)
+        }
+    }
+
     private func write(_ bytes: [UInt8]) {
-        guard let p = peripheral, let c = characteristic else { return }
+        guard let p = peripheral, let c = writeCharacteristic ?? characteristic else { return }
         let type: CBCharacteristicWriteType =
             c.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
         p.writeValue(Data(bytes), for: c, type: type)
@@ -481,7 +501,7 @@ final class BLEManager: NSObject, ObservableObject {
 
         for attempt in 0..<2 {
             let commands = p.speedLimitCommands(kmh: kmh)
-            guard !commands.isEmpty else { return "Commande indisponible pour cette roue" }
+            guard !commands.isEmpty || p.usesPolling else { return "Commande indisponible pour cette roue" }
             send(commands)
             let sendTime = commands.reduce(0.0) { $0 + $1.delayAfter }
             try? await Task.sleep(nanoseconds: UInt64(sendTime * 1_000_000_000))
@@ -671,7 +691,7 @@ extension BLEManager: CBCentralManagerDelegate {
                 connectedName = p.name ?? knownWheels[p.identifier.uuidString]
                 state = .connected
                 prepareForNewConnection()
-                p.discoverServices([BLEManager.serviceUUID])
+                p.discoverServices([BLEManager.serviceUUID, BLEManager.nordicService])
             } else {
                 pendingPeripherals[p.identifier] = p
             }
@@ -691,7 +711,7 @@ extension BLEManager: CBCentralManagerDelegate {
             applyProfile(peripheral.identifier.uuidString)
         }
         peripheral.delegate = self
-        peripheral.discoverServices([BLEManager.serviceUUID])
+        peripheral.discoverServices([BLEManager.serviceUUID, BLEManager.nordicService])
     }
 
     func centralManager(_ central: CBCentralManager,
@@ -712,6 +732,8 @@ extension BLEManager: CBCentralManagerDelegate {
             return
         }
         characteristic = nil
+        writeCharacteristic = nil
+        pollTimer?.invalidate()
         TelemetryHub.shared.wheelDisconnected()
         if userDisconnected {
             state = .idle
@@ -735,6 +757,12 @@ extension BLEManager: CBCentralManagerDelegate {
 extension BLEManager: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let services = peripheral.services else { return }
+        if let nordic = services.first(where: { $0.uuid == BLEManager.nordicService }) {
+            // InMotion
+            if proto == nil || preferredBrand == .auto { activate(.inmotion) }
+            peripheral.discoverCharacteristics([BLEManager.nordicWrite, BLEManager.nordicNotify], for: nordic)
+            return
+        }
         for service in services where service.uuid == BLEManager.serviceUUID {
             peripheral.discoverCharacteristics([BLEManager.characteristicUUID], for: service)
         }
@@ -744,6 +772,17 @@ extension BLEManager: CBPeripheralDelegate {
                     didDiscoverCharacteristicsFor service: CBService,
                     error: Error?) {
         guard let chars = service.characteristics else { return }
+        if service.uuid == BLEManager.nordicService {
+            for c in chars {
+                if c.uuid == BLEManager.nordicWrite { writeCharacteristic = c }
+                if c.uuid == BLEManager.nordicNotify {
+                    characteristic = c
+                    peripheral.setNotifyValue(true, for: c)
+                }
+            }
+            startPollingIfNeeded()
+            return
+        }
         for c in chars where c.uuid == BLEManager.characteristicUUID {
             characteristic = c
             peripheral.setNotifyValue(true, for: c)
