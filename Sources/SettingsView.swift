@@ -17,6 +17,8 @@ struct SettingsView: View {
     @AppStorage("ntfyTopic") private var ntfyTopic = ""
     @AppStorage("liveActivity") private var liveActivity = true
     @AppStorage("watchPWMAlerts") private var watchPWMAlerts = true
+    @AppStorage("tempAlert") private var tempAlert = 65.0
+    @State private var chargeLevels: Set<Int> = Set(UserDefaults.standard.array(forKey: "chargeAlertLevels") as? [Int] ?? [80, 100])
 
     var body: some View {
         NavigationStack {
@@ -116,6 +118,23 @@ struct SettingsView: View {
                     Text("Sécurité")
                 } footer: {
                     Text("Après une chute probable, un compte à rebours de 30 s démarre avec sirène. Sans réponse : iOS prépare un SMS avec ta position (tu dois appuyer sur Envoyer, Apple n'autorise pas l'envoi automatique). Pour un envoi 100 % automatique, ton contact installe l'appli gratuite « ntfy » et s'abonne au même sujet (choisis un nom unique, ex. gyrocare-ton-prenom-1234).")
+                }
+
+                Section {
+                    ForEach([80, 90, 100], id: \.self) { level in
+                        Toggle("Charge à \(level) %", isOn: Binding(
+                            get: { chargeLevels.contains(level) },
+                            set: { on in
+                                if on { chargeLevels.insert(level) } else { chargeLevels.remove(level) }
+                                UserDefaults.standard.set(Array(chargeLevels), forKey: "chargeAlertLevels")
+                            }))
+                    }
+                    Stepper(tempAlert == 0 ? "Alerte température : désactivée" : String(format: "Alerte température : %.0f °C", tempAlert),
+                            value: $tempAlert, in: 0...90, step: 5)
+                } header: {
+                    Text("Alertes charge et température")
+                } footer: {
+                    Text("La roue doit rester connectée à l'iPhone pendant la charge. L'alerte température prévient aussi quand la température monte vite.")
                 }
 
                 Section("Écran verrouillé et montre") {

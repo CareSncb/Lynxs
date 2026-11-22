@@ -114,6 +114,16 @@ protocol WheelProtocol: AnyObject {
     var specialLightLabel: String { get }
     /// Mode des pédales.
     func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand]
+    /// Journal d'événements (Leaperkim uniquement pour l'instant).
+    var supportsEventLog: Bool { get }
+    func eventLogRequest() -> [WheelCommand]
+    func drainEvents() -> [VeteranEvent]
+}
+
+extension WheelProtocol {
+    var supportsEventLog: Bool { false }
+    func eventLogRequest() -> [WheelCommand] { [] }
+    func drainEvents() -> [VeteranEvent] { [] }
 }
 
 enum ProtocolDetector {

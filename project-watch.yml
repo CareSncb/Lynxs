@@ -12,6 +12,7 @@ targets:
     sources:
       - Sources
       - Shared
+      - SharedWidget
     scheme: {}
     info:
       path: Sources/Info.plist
@@ -29,19 +30,20 @@ targets:
           - location
           - audio
         NSSupportsLiveActivities: true
-        NSLocationWhenInUseUsageDescription: "LynxDash enregistre le tracé GPS de tes trajets et l'envoie à ton contact en cas de chute."
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Permet d'enregistrer tes trajets et de détecter une chute même téléphone verrouillé."
+        NSLocationWhenInUseUsageDescription: "LynxDash enregistre le tracé GPS de tes trajets, gère les zones de bridage et envoie ta position à ton contact en cas de chute."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Permet d'enregistrer tes trajets, de gérer les zones de bridage et de détecter une chute même téléphone verrouillé."
+        NSPhotoLibraryAddUsageDescription: "Pour enregistrer l'image de tes trajets."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: be.gyrocare.lynxdash
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
-        TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
         CODE_SIGN_IDENTITY: ""
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
       - target: LynxWidget
       - target: LynxWatch
@@ -53,10 +55,10 @@ targets:
   LynxWidget:
     type: app-extension
     platform: iOS
-    deploymentTarget: "17.0"
     sources:
       - Widget
       - Shared
+      - SharedWidget
     info:
       path: Widget/Info.plist
       properties:
@@ -68,20 +70,20 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: be.gyrocare.lynxdash.widget
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: "YES"
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
-        TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
         CODE_SIGN_IDENTITY: ""
-        SKIP_INSTALL: "YES"
   LynxWatch:
     type: application
     platform: watchOS
-    deploymentTarget: "10.0"
     sources:
       - Watch
+      - SharedWidget
     info:
       path: Watch/Info.plist
       properties:
@@ -93,11 +95,38 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: be.gyrocare.lynxdash.watchkitapp
+        TARGETED_DEVICE_FAMILY: "4"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"
-        TARGETED_DEVICE_FAMILY: "4"
         CODE_SIGNING_ALLOWED: "NO"
         CODE_SIGNING_REQUIRED: "NO"
         CODE_SIGN_IDENTITY: ""
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: LynxWatchWidget
+  LynxWatchWidget:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - WatchWidget
+      - SharedWidget
+    info:
+      path: WatchWidget/Info.plist
+      properties:
+        CFBundleDisplayName: LynxDash
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: be.gyrocare.lynxdash.watchkitapp.widget
+        TARGETED_DEVICE_FAMILY: "4"
+        SKIP_INSTALL: "YES"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""

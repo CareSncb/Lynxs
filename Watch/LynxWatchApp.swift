@@ -1,6 +1,7 @@
 import SwiftUI
 import WatchConnectivity
 import WatchKit
+import WidgetKit
 
 @main
 struct LynxWatchApp: App {
@@ -36,6 +37,9 @@ final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
 
     private var pwmAlarm: Double = 0
     private var lastHaptic = Date.distantPast
+    private var lastComplicationSave = Date.distantPast
+    private var lastComplicationReload = Date.distantPast
+    private var lastConnected: Bool?
 
     override init() {
         super.init()
@@ -98,12 +102,34 @@ final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
         if let m = p["message"] as? String { message = m }
         if !connected { speed = 0 }
         lastUpdate = Date()
+        updateComplication()
 
         // Alerte PWM au poignet
         if connected, hasPWM, pwmAlarm > 0, pwm >= pwmAlarm, Date().timeIntervalSince(lastHaptic) > 1 {
             lastHaptic = Date()
             WKInterfaceDevice.current().play(.directionDown)
         }
+    }
+
+    /// Partage l'état avec la complication du cadran (budget de rafraîchissement limité).
+    private func updateComplication() {
+        let now = Date()
+        guard now.timeIntervalSince(lastComplicationSave) > 20 || lastConnected != connected else { return }
+        lastComplicationSave = now
+        var snap = WidgetSnapshot.load()
+        if !name.isEmpty { snap.wheelName = name }
+        snap.battery = battery
+        snap.voltage = voltage
+        snap.speed = speed
+        snap.connected = connected
+        snap.limited = limited
+        snap.updated = now
+        snap.save()
+        if lastConnected != connected || now.timeIntervalSince(lastComplicationReload) > 600 {
+            lastComplicationReload = now
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+        lastConnected = connected
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {

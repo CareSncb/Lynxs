@@ -16,6 +16,7 @@ enum Prefs {
     static var ntfyTopic: String { d.string(forKey: "ntfyTopic") ?? "" }
     static var liveActivity: Bool { bool("liveActivity", true) }
     static var watchPWMAlerts: Bool { bool("watchPWMAlerts", true) }
+    static var workshopMode: Bool { bool("workshopMode", false) }
 }
 
 /// Distribue chaque trame de télémétrie aux services de l'appli (appelé sur le thread principal).
@@ -29,6 +30,8 @@ final class TelemetryHub {
         LiveActivityController.shared.update(d, manager: manager)
         PhoneWatchBridge.shared.pushLive(d, manager: manager)
         BatteryTest.shared.ingest(d)
+        WheelMonitors.shared.ingest(d, manager: manager)
+        WidgetBridge.shared.update(d, manager: manager)
     }
 
     func wheelDisconnected() {
@@ -36,5 +39,6 @@ final class TelemetryHub {
         SafetyMonitor.shared.wheelDisconnected()
         LiveActivityController.shared.end()
         PhoneWatchBridge.shared.pushDisconnected()
+        WidgetBridge.shared.disconnected()
     }
 }

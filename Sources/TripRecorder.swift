@@ -65,6 +65,7 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
     private var stoppedSince: Date?
     private var disconnectTimer: Timer?
     private var gpsDistance: Double = 0
+    private var locationActive = false
     private var lastGPS: CLLocation?
 
     override init() {
@@ -85,6 +86,15 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         }
     }
 
+    /// Active le GPS en continu (sortie de groupe).
+    func ensureLocation() {
+        guard !locationActive else { return }
+        locationActive = true
+        location.allowsBackgroundLocationUpdates = location.authorizationStatus == .authorizedAlways
+            || location.authorizationStatus == .authorizedWhenInUse
+        location.startUpdatingLocation()
+    }
+
     /// Position ponctuelle (utilisée par l'alerte de chute).
     func requestOneShotLocation() {
         location.requestLocation()
@@ -95,6 +105,15 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
     func ingest(_ d: WheelData, wheelName: String) {
         disconnectTimer?.invalidate()
         disconnectTimer = nil
+
+        // Zones GPS : il faut la position même hors enregistrement de trajet
+        if Prefs.gpsEnabled, !ZoneManager.shared.zones.isEmpty, !locationActive {
+            locationActive = true
+            location.allowsBackgroundLocationUpdates = location.authorizationStatus == .authorizedAlways
+                || location.authorizationStatus == .authorizedWhenInUse
+            location.startUpdatingLocation()
+        }
+        if Prefs.workshopMode { return }
 
         if trip == nil {
             guard Prefs.autoTrips, abs(d.speed) >= 3 else { return }
@@ -164,6 +183,7 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
                 || location.authorizationStatus == .authorizedWhenInUse
             location.showsBackgroundLocationIndicator = true
             location.startUpdatingLocation()
+            locationActive = true
         }
     }
 
@@ -171,7 +191,10 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         guard let t = trip else { return }
         trip = nil
         isRecording = false
-        location.stopUpdatingLocation()
+        if ZoneManager.shared.zones.isEmpty || BLEManager.shared.state != .connected {
+            location.stopUpdatingLocation()
+            locationActive = false
+        }
         if t.samples.count >= 10 {
             TripStore.shared.save(t)
         } else {
@@ -180,7 +203,11 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
     }
 
     func wheelDisconnected() {
-        guard trip != nil else { return }
+        if trip == nil {
+            location.stopUpdatingLocation()
+            locationActive = false
+            return
+        }
         // Fin du trajet si la roue ne revient pas dans les 2 minutes
         disconnectTimer?.invalidate()
         disconnectTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: false) { [weak self] _ in
@@ -195,6 +222,7 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
             if let prev = lastGPS, isRecording { gpsDistance += loc.distance(from: prev) }
             lastGPS = loc
             lastLocation = loc
+            ZoneManager.shared.check(loc)
         }
     }
 

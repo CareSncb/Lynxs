@@ -38,6 +38,9 @@ final class BLEManager: NSObject, ObservableObject {
     @Published var lastFrameDate: Date?
     @Published var limiterBusy = false
     @Published var limiterMessage: String?
+    @Published private(set) var eventLog: [VeteranEvent] = []
+    @Published private(set) var eventLogDownloading = false
+    private var lastEventDate = Date.distantPast
 
     /// Action de bridage programmée, appliquée dès que la roue est à l'arrêt.
     @Published var pendingAction: LimiterAction? {
@@ -62,19 +65,27 @@ final class BLEManager: NSObject, ObservableObject {
         didSet {
             UserDefaults.standard.set(cellCount, forKey: Keys.cells(activeBrand))
             proto?.cellCount = cellCount
+            saveProfile { $0.cells = self.cellCount }
         }
     }
     @Published var speedAlarm: Double {
-        didSet { UserDefaults.standard.set(speedAlarm, forKey: Keys.speedAlarm) }
+        didSet {
+            UserDefaults.standard.set(speedAlarm, forKey: Keys.speedAlarm)
+            saveProfile { $0.speedAlarm = self.speedAlarm }
+        }
     }
     @Published var pwmAlarm: Double {
-        didSet { UserDefaults.standard.set(pwmAlarm, forKey: Keys.pwmAlarm) }
+        didSet {
+            UserDefaults.standard.set(pwmAlarm, forKey: Keys.pwmAlarm)
+            saveProfile { $0.pwmAlarm = self.pwmAlarm }
+        }
     }
     /// Limite « normale » de la roue, restaurée au débridage (mémorisée au premier bridage).
     @Published var normalLimit: Int? {
         didSet {
             if let v = normalLimit { UserDefaults.standard.set(v, forKey: Keys.normalLimit) }
             else { UserDefaults.standard.removeObject(forKey: Keys.normalLimit) }
+            saveProfile { $0.normalLimit = self.normalLimit }
         }
     }
 
@@ -165,9 +176,12 @@ final class BLEManager: NSObject, ObservableObject {
         guard let p = ProtocolDetector.make(brand) else { return }
         proto = p
         activeBrand = brand
-        let cells = UserDefaults.standard.object(forKey: Keys.cells(brand)) as? Int
+        let cells = profileCells()
+            ?? UserDefaults.standard.object(forKey: Keys.cells(brand)) as? Int
             ?? BLEManager.defaultCells(brand)
+        applyingProfile = true
         cellCount = cells
+        applyingProfile = false
         p.cellCount = cells
         send(p.initialCommands())
     }
@@ -223,7 +237,7 @@ final class BLEManager: NSObject, ObservableObject {
     /// Lance une connexion en attente vers chaque roue connue : iOS connecte automatiquement
     /// la première qui s'allume, même en arrière-plan (ou relance l'appli si le système l'a fermée).
     func connectKnownWheels() {
-        guard autoConnect, central.state == .poweredOn, state != .connected else { return }
+        guard autoConnect, !Prefs.workshopMode, central.state == .poweredOn, state != .connected else { return }
         let ids = knownWheels.keys.compactMap(UUID.init(uuidString:))
         guard !ids.isEmpty else { return }
         for p in central.retrievePeripherals(withIdentifiers: ids) where pendingPeripherals[p.identifier] == nil {
@@ -250,6 +264,11 @@ final class BLEManager: NSObject, ObservableObject {
         pendingPeripherals = pendingPeripherals.filter { $0.key == keep }
     }
 
+    /// Mode atelier : on se connecte aux roues des clients sans les mémoriser ni enregistrer de trajet.
+    func workshopModeChanged() {
+        if Prefs.workshopMode { cancelPendingConnections() } else { connectKnownWheels() }
+    }
+
     func forgetWheel(_ id: String) {
         knownWheels.removeValue(forKey: id)
         UserDefaults.standard.set(knownWheels, forKey: Keys.knownWheels)
@@ -258,6 +277,66 @@ final class BLEManager: NSObject, ObservableObject {
     private func rememberWheel(_ p: CBPeripheral) {
         knownWheels[p.identifier.uuidString] = p.name ?? connectedName ?? "Roue"
         UserDefaults.standard.set(knownWheels, forKey: Keys.knownWheels)
+    }
+
+    // MARK: - Profils par roue
+
+    private var applyingProfile = false
+
+    private func saveProfile(_ change: (inout WheelProfile) -> Void) {
+        guard !applyingProfile, !Prefs.workshopMode, let id = currentWheelID else { return }
+        ProfileStore.shared.update(id, change)
+    }
+
+    /// Recharge les réglages mémorisés pour cette roue (cellules, alarmes, limite habituelle).
+    private func applyProfile(_ id: String) {
+        guard let p = ProfileStore.shared.profile(id) else { return }
+        applyingProfile = true
+        if let v = p.speedAlarm { speedAlarm = v }
+        if let v = p.pwmAlarm { pwmAlarm = v }
+        if let v = p.normalLimit { normalLimit = v }
+        applyingProfile = false
+    }
+
+    /// Cellules mémorisées pour la roue connectée, sinon celles de la marque.
+    private func profileCells() -> Int? {
+        guard let id = currentWheelID else { return nil }
+        return ProfileStore.shared.profile(id)?.cells
+    }
+
+    var maintenanceItems: [MaintenanceItem] {
+        guard let id = currentWheelID else { return [] }
+        if let items = ProfileStore.shared.profile(id)?.maintenance { return items }
+        let items = MaintenanceItem.defaults(total: data.totalDistance)
+        ProfileStore.shared.update(id) { $0.maintenance = items }
+        return items
+    }
+
+    func updateMaintenance(_ items: [MaintenanceItem]) {
+        guard let id = currentWheelID else { return }
+        ProfileStore.shared.update(id) { $0.maintenance = items }
+        objectWillChange.send()
+    }
+
+    // MARK: - Journal d'événements
+
+    var supportsEventLog: Bool { proto?.supportsEventLog ?? false }
+
+    /// Télécharge le journal d'erreurs de la roue (Leaperkim, firmware récent).
+    @MainActor
+    func downloadEventLog() async {
+        guard state == .connected, let p = proto, p.supportsEventLog else { return }
+        eventLog = []
+        eventLogDownloading = true
+        lastEventDate = Date()
+        send(p.eventLogRequest())
+        // Fin quand plus rien n'arrive pendant 4 s (ou au bout de 2 minutes)
+        let deadline = Date().addingTimeInterval(120)
+        while Date() < deadline {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if Date().timeIntervalSince(lastEventDate) > 4 { break }
+        }
+        eventLogDownloading = false
     }
 
     // MARK: - Commandes de réglage
@@ -297,6 +376,13 @@ final class BLEManager: NSObject, ObservableObject {
         guard let p = proto else { return }
         for frame in p.feed(value) {
             handle(frame)
+        }
+        let entries = p.drainEvents()
+        if !entries.isEmpty {
+            var byIndex = Dictionary(eventLog.map { ($0.index, $0) }, uniquingKeysWith: { a, _ in a })
+            for e in entries { byIndex[e.index] = e }
+            eventLog = byIndex.values.sorted { $0.index > $1.index }
+            lastEventDate = Date()
         }
     }
 
@@ -600,7 +686,10 @@ extension BLEManager: CBCentralManagerDelegate {
         state = .connected
         connectedName = peripheral.name ?? knownWheels[peripheral.identifier.uuidString] ?? connectedName
         prepareForNewConnection()
-        rememberWheel(peripheral)
+        if !Prefs.workshopMode {
+            rememberWheel(peripheral)
+            applyProfile(peripheral.identifier.uuidString)
+        }
         peripheral.delegate = self
         peripheral.discoverServices([BLEManager.serviceUUID])
     }

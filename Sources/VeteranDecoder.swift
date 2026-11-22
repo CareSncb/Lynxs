@@ -12,6 +12,18 @@ final class VeteranDecoder: WheelProtocol {
 
     private var buffer: [UInt8] = []
     private var last = WheelData()
+    private var events: [VeteranEvent] = []
+
+    var supportsEventLog: Bool { last.newProtocol }
+
+    func eventLogRequest() -> [WheelCommand] {
+        last.newProtocol ? [WheelCommand(VeteranEvent.requestCommand)] : []
+    }
+
+    func drainEvents() -> [VeteranEvent] {
+        defer { events.removeAll() }
+        return events
+    }
 
     func reset() {
         buffer.removeAll()
@@ -135,6 +147,7 @@ final class VeteranDecoder: WheelProtocol {
         }
 
         d.batteryPercent = estimateBattery(voltage: d.voltage, cells: cellCount)
+        if d.newProtocol, let entries = VeteranEvent.parse(frame: f) { events.append(contentsOf: entries) }
         return d
     }
 

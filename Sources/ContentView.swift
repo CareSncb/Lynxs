@@ -52,6 +52,7 @@ struct FallAlertView: View {
 struct ContentView: View {
     @EnvironmentObject var ble: BLEManager
     @State private var showScanner = false
+    @State private var showHandlebar = false
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
@@ -105,8 +106,8 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if TripRecorder.shared.isRecording {
-                        Label("Enregistrement", systemImage: "record.circle").foregroundStyle(.red)
+                    Button { showHandlebar = true } label: {
+                        Label("Mode guidon", systemImage: "rectangle.expand.vertical")
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -123,6 +124,9 @@ struct ContentView: View {
                         }
                     }
                 }
+            }
+            .fullScreenCover(isPresented: $showHandlebar) {
+                HandlebarView().environmentObject(ble)
             }
             .sheet(isPresented: $showScanner) {
                 ScannerView().environmentObject(ble)

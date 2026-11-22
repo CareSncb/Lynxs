@@ -34,6 +34,15 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             build
 
+      - name: Signature ad-hoc avec le groupe d'apps (widgets / complication)
+        run: |
+          APP=build/Build/Products/Release-iphoneos/LynxDash.app
+          ENT=Signing/app-group.entitlements
+          find "$APP" -depth -name "*.appex" -type d -exec codesign -f -s - --entitlements "$ENT" {} \;
+          if [ -d "$APP/Watch/LynxWatch.app" ]; then codesign -f -s - --entitlements "$ENT" "$APP/Watch/LynxWatch.app"; fi
+          codesign -f -s - --entitlements "$ENT" "$APP"
+          codesign -d --entitlements - "$APP" | head -20
+
       - name: Créer l'IPA
         run: |
           mkdir -p Payload
@@ -70,6 +79,15 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             build
+
+      - name: Signature ad-hoc avec le groupe d'apps (widgets / complication)
+        run: |
+          APP=build/Build/Products/Release-iphoneos/LynxDash.app
+          ENT=Signing/app-group.entitlements
+          find "$APP" -depth -name "*.appex" -type d -exec codesign -f -s - --entitlements "$ENT" {} \;
+          if [ -d "$APP/Watch/LynxWatch.app" ]; then codesign -f -s - --entitlements "$ENT" "$APP/Watch/LynxWatch.app"; fi
+          codesign -f -s - --entitlements "$ENT" "$APP"
+          codesign -d --entitlements - "$APP" | head -20
 
       - name: Créer l'IPA
         run: |

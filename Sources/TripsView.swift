@@ -34,6 +34,15 @@ struct TripsView: View {
                     Text("Les trajets démarrent tout seuls au-dessus de 3 km/h et s'arrêtent après 5 minutes d'arrêt.")
                 }
 
+                Section {
+                    NavigationLink { GroupRideView() } label: {
+                        Label("Sortie de groupe", systemImage: "person.3.fill")
+                    }
+                    NavigationLink { ZonesView() } label: {
+                        Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse")
+                    }
+                }
+
                 Section("Trajets") {
                     if store.trips.isEmpty {
                         Text("Aucun trajet pour l'instant").foregroundStyle(.secondary)
@@ -193,6 +202,7 @@ struct TripDetailView: View {
             }
 
             Section("Exporter") {
+                TripShareButton(trip: trip)
                 if let gpxURL {
                     ShareLink(item: gpxURL) { Label("Partager le GPX", systemImage: "map") }
                 }

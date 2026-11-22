@@ -121,7 +121,8 @@ enum DiagnosticReport {
             if let icon = UIImage(named: "Logo") {
                 icon.draw(in: CGRect(x: page.width - left - 50, y: 34, width: 50, height: 50))
             }
-            text("Gyrocare", size: 22, bold: true, color: UIColor.systemOrange)
+            text(Business.name, size: 22, bold: true, color: UIColor.systemOrange)
+            for line in Business.headerLines { text(line, size: 9, color: .darkGray) }
             text("Fiche diagnostic gyroroue", size: 15, bold: true)
             text(df.string(from: visit.date), size: 11, color: .darkGray)
             y += 6; line()
@@ -151,6 +152,16 @@ enum DiagnosticReport {
                 row("Test batterie : chute par cellule", String(format: "%.3f V — %@", r.sagPerCell, r.verdict))
             }
             y += 6; line()
+
+            let errors = BLEManager.shared.eventLog.filter(\.isError).prefix(10)
+            if !errors.isEmpty {
+                text("Dernières erreurs enregistrées par la roue", size: 13, bold: true)
+                for e in errors {
+                    let when = e.date.map { DateFormatter.localizedString(from: $0, dateStyle: .short, timeStyle: .short) } ?? "#\(e.index)"
+                    text("\(when) — \(e.message)", size: 10, color: .darkGray)
+                }
+                y += 6; line()
+            }
 
             text("Travaux réalisés", size: 13, bold: true)
             text(visit.work.isEmpty ? "—" : visit.work, size: 11)

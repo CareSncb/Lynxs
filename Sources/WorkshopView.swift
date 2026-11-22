@@ -5,10 +5,20 @@ struct WorkshopView: View {
     @ObservedObject private var store = WorkshopStore.shared
     @EnvironmentObject var ble: BLEManager
     @State private var showNewVisit = false
+    @AppStorage("workshopMode") private var workshopMode = false
 
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Toggle(isOn: $workshopMode) {
+                        Label("Mode atelier", systemImage: "wrench.adjustable")
+                    }
+                    .onChange(of: workshopMode) { _, _ in ble.workshopModeChanged() }
+                } footer: {
+                    Text("Pour les roues des clients : pas de connexion automatique à tes roues, rien n'est mémorisé dans « Mes roues », aucun trajet enregistré.")
+                }
+
                 Section {
                     Button {
                         showNewVisit = true
@@ -21,6 +31,21 @@ struct WorkshopView: View {
                         BatteryTestView()
                     } label: {
                         Label("Test de batterie", systemImage: "bolt.batteryblock")
+                    }
+                    NavigationLink {
+                        EventLogView()
+                    } label: {
+                        Label("Journal d'erreurs (Leaperkim)", systemImage: "exclamationmark.triangle")
+                    }
+                    NavigationLink {
+                        MaintenanceView()
+                    } label: {
+                        Label("Entretien de la roue", systemImage: "calendar.badge.clock")
+                    }
+                    NavigationLink {
+                        InvoicesView()
+                    } label: {
+                        Label("Devis et factures", systemImage: "eurosign.circle")
                     }
                 } footer: {
                     if ble.state != .connected {
