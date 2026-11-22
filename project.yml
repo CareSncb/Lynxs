@@ -33,6 +33,10 @@ targets:
         NSLocationWhenInUseUsageDescription: "LynxDash enregistre le tracé GPS de tes trajets, gère les zones de bridage et envoie ta position à ton contact en cas de chute."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Permet d'enregistrer tes trajets, de gérer les zones de bridage et de détecter une chute même téléphone verrouillé."
         NSPhotoLibraryAddUsageDescription: "Pour enregistrer l'image de tes trajets."
+        CFBundleURLTypes:
+          - CFBundleURLName: be.gyrocare.lynxdash
+            CFBundleURLSchemes:
+              - lynxdash
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: be.gyrocare.lynxdash

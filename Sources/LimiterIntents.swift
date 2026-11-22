@@ -29,6 +29,35 @@ struct DebriderIntent: AppIntent {
     }
 }
 
+/// Un seul bouton (Flic, bouton Action…) : bride si la roue ne l'est pas, sinon débride.
+struct BasculerBridageIntent: AppIntent {
+    static var title: LocalizedStringResource = "Basculer le bridage 25 km/h"
+    static var description = IntentDescription("Bride la roue si elle ne l'est pas, sinon la débride. Idéal pour un bouton Flic.")
+    static var openAppWhenRun: Bool = false
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let text = await LimiterToggle.run()
+        return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: text)))
+    }
+}
+
+enum LimiterToggle {
+    /// Bascule le bridage et renvoie le message à afficher / annoncer.
+    @MainActor
+    static func run() async -> String {
+        let ble = BLEManager.shared
+        await ble.waitForTelemetry(timeout: 12)
+        let engaged = ble.isLimited || ble.pendingAction == .engage
+        let action: LimiterAction = engaged ? .release : .engage
+        let outcome = engaged ? await ble.releaseLimiter() : await ble.engageLimiter()
+        let text = outcome.message(for: action)
+        // Retour sonore : utile quand on appuie sur le Flic sans regarder le téléphone
+        VoiceAnnouncer.shared.speak(text.replacingOccurrences(of: " ✓", with: ""), urgent: true)
+        return text
+    }
+}
+
 struct LynxShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: BriderIntent(),
@@ -41,5 +70,9 @@ struct LynxShortcuts: AppShortcutsProvider {
                               "Débride ma roue avec \(.applicationName)"],
                     shortTitle: "Débrider",
                     systemImageName: "lock.open.fill")
+        AppShortcut(intent: BasculerBridageIntent(),
+                    phrases: ["Basculer le bridage avec \(.applicationName)"],
+                    shortTitle: "Basculer le bridage",
+                    systemImageName: "lock.rotation")
     }
 }
