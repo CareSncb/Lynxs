@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16233A"/>
+      <stop offset="1" stop-color="#05080F"/>
+    </linearGradient>
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22C55E"/>
+      <stop offset="0.5" stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#EF4444"/>
+    </linearGradient>
+    <radialGradient id="hub" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0" stop-color="#2B3548"/>
+      <stop offset="1" stop-color="#141A26"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- pédales -->
+  <rect x="86" y="600" width="150" height="40" rx="20" fill="#9CA3AF"/>
+  <rect x="788" y="600" width="150" height="40" rx="20" fill="#9CA3AF"/>
+  <!-- pneu -->
+  <circle cx="512" cy="512" r="330" fill="none" stroke="#0B0F17" stroke-width="120"/>
+  <circle cx="512" cy="512" r="330" fill="none" stroke="#252C3A" stroke-width="96"/>
+  <!-- sculptures du pneu -->
+  <g stroke="#323B4D" stroke-width="14" stroke-linecap="round">
+    <line x1="512" y1="146" x2="512" y2="214"/>
+    <line x1="512" y1="810" x2="512" y2="878"/>
+    <line x1="146" y1="512" x2="214" y2="512"/>
+    <line x1="810" y1="512" x2="878" y2="512"/>
+    <line x1="253" y1="253" x2="301" y2="301"/>
+    <line x1="771" y1="253" x2="723" y2="301"/>
+    <line x1="253" y1="771" x2="301" y2="723"/>
+    <line x1="771" y1="771" x2="723" y2="723"/>
+  </g>
+  <!-- arc compteur (de 135° à 45°, sens horaire, 3/4 de tour) -->
+  <path d="M 278.7 745.3 A 330 330 0 1 1 745.3 745.3" fill="none" stroke="url(#arc)" stroke-width="40" stroke-linecap="round"/>
+  <!-- moyeu -->
+  <circle cx="512" cy="512" r="250" fill="url(#hub)"/>
+  <!-- cadenas -->
+  <path d="M 420 470 V 400 A 92 92 0 0 1 604 400 V 470" fill="none" stroke="#E5E7EB" stroke-width="44" stroke-linecap="round"/>
+  <rect x="362" y="452" width="300" height="230" rx="44" fill="#F97316"/>
+  <text x="512" y="626" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-weight="bold" font-size="150" fill="#FFFFFF">25</text>
+</svg>

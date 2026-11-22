@@ -37,6 +37,14 @@ final class BLEManager: NSObject, ObservableObject {
     @Published var framesReceived = 0
     @Published var lastFrameDate: Date?
     @Published var limiterBusy = false
+    @Published var limiterMessage: String?
+
+    /// Action de bridage programmée, appliquée dès que la roue est à l'arrêt.
+    @Published var pendingAction: LimiterAction? {
+        didSet {
+            UserDefaults.standard.set(pendingAction?.rawValue, forKey: Keys.pending)
+        }
+    }
 
     /// Marque détectée (ou forcée) pour la roue connectée.
     @Published private(set) var activeBrand: WheelBrand = .auto
@@ -86,6 +94,7 @@ final class BLEManager: NSObject, ObservableObject {
         static let lastWheel = "lastWheelUUID"
         static let normalLimit = "normalLimit"
         static let brand = "preferredBrand"
+        static let pending = "pendingLimiterAction"
         static func cells(_ b: WheelBrand) -> String { "cells_\(b.rawValue)" }
     }
 
@@ -105,6 +114,9 @@ final class BLEManager: NSObject, ObservableObject {
     private var userDisconnected = false
     private var lastAlarm = Date.distantPast
     private var kingsongProbeSent = false
+    private var stoppedSince: Date?
+    private var lastPendingAttempt = Date.distantPast
+    private var pendingAttempts = 0
 
     override init() {
         let defaults = UserDefaults.standard
@@ -114,6 +126,7 @@ final class BLEManager: NSObject, ObservableObject {
         speedAlarm = defaults.object(forKey: Keys.speedAlarm) as? Double ?? 0
         pwmAlarm = defaults.object(forKey: Keys.pwmAlarm) as? Double ?? 80
         normalLimit = defaults.object(forKey: Keys.normalLimit) as? Int
+        pendingAction = LimiterAction(rawValue: defaults.string(forKey: Keys.pending) ?? "")
         super.init()
         central = CBCentralManager(delegate: self, queue: .main)
     }
@@ -230,6 +243,7 @@ final class BLEManager: NSObject, ObservableObject {
         framesReceived += 1
         lastFrameDate = Date()
         maxSpeed = max(maxSpeed, abs(d.speed))
+        checkPendingAction(d)
 
         let speedTriggered = speedAlarm > 0 && abs(d.speed) >= speedAlarm
         let pwmTriggered = d.hasPWM && pwmAlarm > 0 && d.pwm >= pwmAlarm
@@ -272,17 +286,27 @@ final class BLEManager: NSObject, ObservableObject {
 
     // MARK: - Bridage
 
-    /// Raison pour laquelle on ne peut pas envoyer de réglage, ou nil si c'est possible.
-    var settingsBlockReason: String? {
+    /// Raison liée à la connexion / à la roue empêchant d'envoyer un réglage (hors vitesse).
+    var connectionBlockReason: String? {
         guard state == .connected, characteristic != nil, framesReceived > 0, let p = proto else {
             return "Roue non connectée"
         }
-        if let reason = p.settingsBlockReason() { return reason }
-        guard abs(data.speed) < 3 else {
-            return "Arrête-toi d'abord (moins de 3 km/h)"
+        return p.settingsBlockReason()
+    }
+
+    /// Raison pour laquelle on ne peut pas envoyer de réglage tout de suite, ou nil si c'est possible.
+    var settingsBlockReason: String? {
+        if let reason = connectionBlockReason { return reason }
+        guard abs(data.speed) < BLEManager.stopSpeed else {
+            return "Roue en mouvement"
         }
         return nil
     }
+
+    /// En dessous de cette vitesse (km/h), la roue est considérée à l'arrêt.
+    static let stopSpeed = 2.0
+    /// Durée d'arrêt avant d'appliquer un bridage programmé (s).
+    static let stopDelay: TimeInterval = 1.5
 
     /// Attend que la roue soit connectée et envoie des données (utile au lancement par Siri / la montre).
     @MainActor
@@ -321,35 +345,138 @@ final class BLEManager: NSObject, ObservableObject {
         return "La roue n'a pas confirmé le réglage (limite lue : \(Int(data.speedLimit)) km/h)"
     }
 
+    /// Bride à 25 km/h. En roulant, le bridage est programmé et s'applique dès l'arrêt.
     @MainActor
-    func engageLimiter() async -> String? {
-        if isLimited { return nil }
-        if let reason = settingsBlockReason { return reason }
+    func engageLimiter() async -> LimiterOutcome {
+        if isLimited {
+            pendingAction = nil
+            return .applied
+        }
+        if let reason = connectionBlockReason { return .failed(reason) }
+        rememberNormalLimit()
+        if abs(data.speed) >= BLEManager.stopSpeed {
+            pendingAction = .engage
+            return .scheduled
+        }
+        return await apply(.engage)
+    }
+
+    /// Débride. En roulant, le débridage est programmé et s'applique dès l'arrêt.
+    @MainActor
+    func releaseLimiter() async -> LimiterOutcome {
+        if pendingAction == .engage && !isLimited {
+            // Bridage pas encore appliqué : on l'annule simplement
+            pendingAction = nil
+            return .applied
+        }
+        guard let target = normalLimit, target != BLEManager.restrictedLimit else {
+            return .failed("Limite d'origine inconnue : règle-la dans Réglages")
+        }
+        if let reason = connectionBlockReason { return .failed(reason) }
+        if abs(data.speed) >= BLEManager.stopSpeed {
+            pendingAction = .release
+            return .scheduled
+        }
+        _ = target
+        return await apply(.release)
+    }
+
+    func cancelPending() {
+        pendingAction = nil
+    }
+
+    private func rememberNormalLimit() {
+        guard data.speedLimitKnown else { return }
         let current = Int(data.speedLimit.rounded())
         if current != BLEManager.restrictedLimit {
             // 0 = tiltback désactivé (Begode) : on le mémorise aussi pour le restaurer
             normalLimit = current
         }
-        let result = await setSpeedLimit(BLEManager.restrictedLimit)
-        if result == nil { AudioServicesPlaySystemSound(1520) }
-        return result
     }
 
     @MainActor
-    func releaseLimiter() async -> String? {
-        guard let target = normalLimit, target != BLEManager.restrictedLimit else {
-            return "Limite d'origine inconnue : règle-la dans Réglages"
+    private func apply(_ action: LimiterAction) async -> LimiterOutcome {
+        let error: String?
+        switch action {
+        case .engage:
+            rememberNormalLimit()
+            error = await setSpeedLimit(BLEManager.restrictedLimit)
+        case .release:
+            guard let target = normalLimit else { return .failed("Limite d'origine inconnue") }
+            if target == 0 && activeBrand == .begode {
+                if let reason = settingsBlockReason { return .failed(reason) }
+                write([0x22])   // '"' : tiltback désactivé
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                error = data.speedLimit == 0 ? nil : "La roue n'a pas confirmé le réglage"
+            } else {
+                error = await setSpeedLimit(target)
+            }
         }
-        if target == 0 && activeBrand == .begode {
-            // Begode : restaurer « tiltback désactivé »
-            if let reason = settingsBlockReason { return reason }
-            write([0x22])   // '"'
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            return data.speedLimit == 0 ? nil : "La roue n'a pas confirmé le réglage"
+        if let error { return .failed(error) }
+        pendingAction = nil
+        AudioServicesPlaySystemSound(1520)
+        return .applied
+    }
+
+    /// Appelé à chaque trame : applique l'action programmée une fois la roue arrêtée.
+    private func checkPendingAction(_ d: WheelData) {
+        if abs(d.speed) < BLEManager.stopSpeed {
+            if stoppedSince == nil { stoppedSince = Date() }
+        } else {
+            stoppedSince = nil
         }
-        let result = await setSpeedLimit(target)
-        if result == nil { AudioServicesPlaySystemSound(1520) }
-        return result
+        guard let action = pendingAction, !limiterBusy,
+              let since = stoppedSince, Date().timeIntervalSince(since) >= BLEManager.stopDelay,
+              Date().timeIntervalSince(lastPendingAttempt) > 5 else { return }
+        lastPendingAttempt = Date()
+        Task { @MainActor in
+            let outcome = await self.apply(action)
+            switch outcome {
+            case .applied:
+                self.pendingAttempts = 0
+                self.limiterMessage = action == .engage ? "Bridage appliqué à l'arrêt ✓" : "Débridage appliqué à l'arrêt ✓"
+                // Signal sonore + vibration : utile quand le téléphone est en poche
+                AudioServicesPlayAlertSound(SystemSoundID(1025))
+                AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            case .failed(let reason):
+                self.pendingAttempts += 1
+                if self.pendingAttempts >= 3 {
+                    self.pendingAction = nil
+                    self.pendingAttempts = 0
+                    self.limiterMessage = "Action programmée abandonnée : \(reason)"
+                }
+            case .scheduled:
+                break
+            }
+        }
+    }
+}
+
+enum LimiterAction: String {
+    case engage, release
+}
+
+enum LimiterOutcome {
+    case applied
+    case scheduled
+    case failed(String)
+
+    var isFailure: Bool {
+        if case .failed = self { return true }
+        return false
+    }
+
+    func message(for action: LimiterAction) -> String {
+        switch self {
+        case .applied:
+            return action == .engage ? "Roue bridée à 25 km/h ✓" : "Roue débridée ✓"
+        case .scheduled:
+            return action == .engage
+                ? "Bridage programmé : il s'appliquera dès que tu seras à l'arrêt"
+                : "Débridage programmé : il s'appliquera dès que tu seras à l'arrêt"
+        case .failed(let reason):
+            return (action == .engage ? "Bridage impossible : " : "Débridage impossible : ") + reason
+        }
     }
 }
 

@@ -10,8 +10,7 @@ struct BriderIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let ble = BLEManager.shared
         await ble.waitForTelemetry(timeout: 12)
-        let error = await ble.engageLimiter()
-        let text = error.map { "Bridage impossible : \($0)" } ?? "Roue bridée à 25 km/h"
+        let text = await ble.engageLimiter().message(for: .engage)
         return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: text)))
     }
 }
@@ -25,8 +24,7 @@ struct DebriderIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let ble = BLEManager.shared
         await ble.waitForTelemetry(timeout: 12)
-        let error = await ble.releaseLimiter()
-        let text = error.map { "Débridage impossible : \($0)" } ?? "Roue débridée"
+        let text = await ble.releaseLimiter().message(for: .release)
         return .result(dialog: IntentDialog(LocalizedStringResource(stringLiteral: text)))
     }
 }

@@ -227,50 +227,79 @@ struct LimiterCard: View {
     @EnvironmentObject var ble: BLEManager
     @State private var confirmEngage = false
     @State private var confirmRelease = false
-    @State private var message: String?
+
+    private var engaged: Bool { ble.isLimited || ble.pendingAction == .engage }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: ble.isLimited ? "lock.fill" : "lock.open.fill")
-                    .foregroundStyle(ble.isLimited ? .orange : .green)
-                Text(ble.isLimited ? "Bridée à 25 km/h" : "Bridage 25 km/h").font(.headline)
+                Image(systemName: icon).foregroundStyle(tint)
+                Text(title).font(.headline)
                 Spacer()
                 if ble.limiterBusy { ProgressView() }
             }
 
-            HoldButton(title: ble.isLimited ? "Maintenir 2 s pour débrider" : "Maintenir 2 s pour brider",
-                       tint: ble.isLimited ? .green : .orange,
-                       disabled: ble.limiterBusy || ble.state != .connected) {
-                if ble.isLimited { confirmRelease = true } else { confirmEngage = true }
+            if let pending = ble.pendingAction {
+                HStack {
+                    Image(systemName: "hourglass")
+                    Text(pending == .engage ? "Bridage programmé : s'appliquera à l'arrêt"
+                                            : "Débridage programmé : s'appliquera à l'arrêt")
+                        .font(.subheadline)
+                    Spacer()
+                    Button("Annuler") { ble.cancelPending() }
+                        .font(.subheadline)
+                }
+                .foregroundStyle(.orange)
+            } else {
+                HoldButton(title: engaged ? "Maintenir 2 s pour débrider" : "Maintenir 2 s pour brider",
+                           tint: engaged ? .green : .orange,
+                           disabled: ble.limiterBusy || ble.state != .connected) {
+                    if engaged { confirmRelease = true } else { confirmEngage = true }
+                }
             }
 
-            if let message {
+            if let message = ble.limiterMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
         .alert("Brider la roue à 25 km/h ?", isPresented: $confirmEngage) {
-            Button("Brider", role: .destructive) { run { await ble.engageLimiter() } }
+            Button("Brider", role: .destructive) { run(.engage) }
             Button("Annuler", role: .cancel) {}
         } message: {
-            Text("La limite actuelle (\(Int(ble.data.speedLimit)) km/h) sera mémorisée et restaurée au débridage. À faire à l'arrêt.")
+            Text("Si tu roules, le bridage s'appliquera automatiquement dès ton prochain arrêt. La limite actuelle (\(Int(ble.data.speedLimit)) km/h) sera restaurée au débridage.")
         }
         .alert("Débrider la roue ?", isPresented: $confirmRelease) {
-            Button("Débrider", role: .destructive) { run { await ble.releaseLimiter() } }
+            Button("Débrider", role: .destructive) { run(.release) }
             Button("Annuler", role: .cancel) {}
         } message: {
             Text("Retour à la limite d'origine : \(ble.normalLimit.map { "\($0) km/h" } ?? "inconnue").")
         }
     }
 
-    private func run(_ action: @escaping () async -> String?) {
-        message = nil
+    private var title: String {
+        if ble.isLimited { return "Bridée à 25 km/h" }
+        if ble.pendingAction == .engage { return "Bridage en attente" }
+        return "Bridage 25 km/h"
+    }
+
+    private var icon: String {
+        if ble.pendingAction != nil { return "lock.badge.clock" }
+        return ble.isLimited ? "lock.fill" : "lock.open.fill"
+    }
+
+    private var tint: Color {
+        if ble.pendingAction != nil { return .yellow }
+        return ble.isLimited ? .orange : .green
+    }
+
+    private func run(_ action: LimiterAction) {
+        ble.limiterMessage = nil
         Task { @MainActor in
-            let error = await action()
-            message = error ?? (ble.isLimited ? "Roue bridée à 25 km/h ✓" : "Roue débridée ✓")
-            UINotificationFeedbackGenerator().notificationOccurred(error == nil ? .success : .error)
+            let outcome = action == .engage ? await ble.engageLimiter() : await ble.releaseLimiter()
+            ble.limiterMessage = outcome.message(for: action)
+            UINotificationFeedbackGenerator().notificationOccurred(outcome.isFailure ? .error : .success)
         }
     }
 }

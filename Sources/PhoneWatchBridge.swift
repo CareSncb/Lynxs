@@ -17,6 +17,7 @@ final class PhoneWatchBridge: NSObject, WCSessionDelegate {
         var reply: [String: Any] = [
             "connected": ble.state == .connected,
             "limited": ble.isLimited,
+            "pending": ble.pendingAction?.rawValue ?? "",
             "limit": ble.data.speedLimitKnown ? ble.data.speedLimit : -1,
             "speed": abs(ble.data.speed),
             "battery": ble.data.batteryPercent,
@@ -36,10 +37,10 @@ final class PhoneWatchBridge: NSObject, WCSessionDelegate {
             switch action {
             case "engage":
                 await ble.waitForTelemetry(timeout: 8)
-                text = await ble.engageLimiter() ?? "Bridée à 25 km/h"
+                text = await ble.engageLimiter().message(for: .engage)
             case "release":
                 await ble.waitForTelemetry(timeout: 8)
-                text = await ble.releaseLimiter() ?? "Débridée"
+                text = await ble.releaseLimiter().message(for: .release)
             default:
                 break
             }

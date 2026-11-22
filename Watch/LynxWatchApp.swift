@@ -16,6 +16,7 @@ struct LynxWatchApp: App {
 final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
     @Published var connected = false
     @Published var limited = false
+    @Published var pending = ""
     @Published var limit: Double = -1
     @Published var speed: Double = 0
     @Published var battery: Double = 0
@@ -42,8 +43,7 @@ final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
                 self.busy = false
                 self.apply(reply)
                 if action != "status" {
-                    WKInterfaceDevice.current().play(self.message?.contains("impossible") == true
-                                                     || self.message?.contains("Arrête") == true ? .failure : .success)
+                    WKInterfaceDevice.current().play(self.message?.contains("impossible") == true ? .failure : .success)
                 }
             }
         }, errorHandler: { _ in
@@ -58,6 +58,7 @@ final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
     private func apply(_ reply: [String: Any]) {
         connected = reply["connected"] as? Bool ?? false
         limited = reply["limited"] as? Bool ?? false
+        pending = reply["pending"] as? String ?? ""
         limit = reply["limit"] as? Double ?? -1
         speed = reply["speed"] as? Double ?? 0
         battery = reply["battery"] as? Double ?? 0
@@ -79,9 +80,9 @@ struct WatchView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-                Image(systemName: session.limited ? "lock.fill" : "lock.open.fill")
+                Image(systemName: session.pending.isEmpty ? (session.limited ? "lock.fill" : "lock.open.fill") : "hourglass")
                     .font(.title2)
-                    .foregroundStyle(session.limited ? .orange : .green)
+                    .foregroundStyle(session.pending.isEmpty ? (session.limited ? Color.orange : Color.green) : Color.yellow)
 
                 Text(statusText)
                     .font(.headline)
@@ -96,10 +97,10 @@ struct WatchView: View {
                 Button {
                     confirm = true
                 } label: {
-                    Label(session.limited ? "Débrider" : "Brider 25", systemImage: session.limited ? "lock.open" : "lock")
+                    Label(engaged ? "Débrider" : "Brider 25", systemImage: engaged ? "lock.open" : "lock")
                         .frame(maxWidth: .infinity)
                 }
-                .tint(session.limited ? .green : .orange)
+                .tint(engaged ? .green : .orange)
                 .disabled(session.busy || !session.connected)
 
                 if session.busy { ProgressView() }
@@ -113,19 +114,23 @@ struct WatchView: View {
             }
             .padding(.horizontal, 4)
         }
-        .confirmationDialog(session.limited ? "Débrider la roue ?" : "Brider à 25 km/h ?",
+        .confirmationDialog(engaged ? "Débrider la roue ?" : "Brider à 25 km/h ?",
                             isPresented: $confirm) {
-            Button(session.limited ? "Oui, débrider" : "Oui, brider", role: .destructive) {
-                session.send(session.limited ? "release" : "engage")
+            Button(engaged ? "Oui, débrider" : "Oui, brider", role: .destructive) {
+                session.send(engaged ? "release" : "engage")
             }
             Button("Annuler", role: .cancel) {}
         }
         .onAppear { session.send("status") }
     }
 
+    private var engaged: Bool { session.limited || session.pending == "engage" }
+
     private var statusText: String {
         guard session.connected else { return "Roue non connectée" }
         let limit = session.limit >= 0 ? String(format: "%.0f km/h", session.limit) : "—"
+        if session.pending == "engage" { return "Bridage en attente de l'arrêt" }
+        if session.pending == "release" { return "Débridage en attente de l'arrêt" }
         return session.limited ? "Bridée à 25 km/h" : "Limite : \(limit)"
     }
 }
