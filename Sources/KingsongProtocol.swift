@@ -78,6 +78,23 @@ final class KingsongProtocol: WheelProtocol {
         ]
     }
 
+    let supportsSpecialLight = true
+    let specialLightLabel = "Automatique"
+
+    func lightCommands(_ mode: LightMode) -> [WheelCommand] {
+        let value: UInt8
+        switch mode {
+        case .off: value = 0x13
+        case .on: value = 0x12
+        case .special: value = 0x14
+        }
+        return [WheelCommand(KingsongProtocol.frame(0x73) { f in f[2] = value; f[3] = 0x01 })]
+    }
+
+    func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand] {
+        [WheelCommand(KingsongProtocol.frame(0x87) { f in f[2] = UInt8(mode.rawValue); f[3] = 0xE0 })]
+    }
+
     func feed(_ data: Data) -> [WheelData] {
         buffer.append(contentsOf: data)
         var results: [WheelData] = []

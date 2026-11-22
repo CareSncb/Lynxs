@@ -8,11 +8,12 @@ struct LynxWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WatchView().environmentObject(session)
+            WatchRoot().environmentObject(session)
         }
     }
 }
 
+/// Reçoit la télémétrie relayée par l'iPhone (la roue n'accepte qu'une connexion Bluetooth).
 final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
     @Published var connected = false
     @Published var limited = false
@@ -20,9 +21,21 @@ final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
     @Published var limit: Double = -1
     @Published var speed: Double = 0
     @Published var battery: Double = 0
+    @Published var voltage: Double = 0
+    @Published var pwm: Double = 0
+    @Published var hasPWM = false
+    @Published var temp: Double = 0
+    @Published var trip: Double = 0
     @Published var name = ""
+    @Published var antiTheft = false
+    @Published var recording = false
     @Published var message: String?
+    @Published var alert: String?
     @Published var busy = false
+    @Published var lastUpdate: Date?
+
+    private var pwmAlarm: Double = 0
+    private var lastHaptic = Date.distantPast
 
     override init() {
         super.init()
@@ -31,6 +44,8 @@ final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
             WCSession.default.activate()
         }
     }
+
+    var engaged: Bool { limited || pending == "engage" }
 
     func send(_ action: String) {
         guard WCSession.default.activationState == .activated else {
@@ -42,8 +57,8 @@ final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
             DispatchQueue.main.async {
                 self.busy = false
                 self.apply(reply)
-                if action != "status" {
-                    WKInterfaceDevice.current().play(self.message?.contains("impossible") == true ? .failure : .success)
+                if action != "status", let m = reply["message"] as? String {
+                    WKInterfaceDevice.current().play(m.contains("impossible") ? .failure : .success)
                 }
             }
         }, errorHandler: { _ in
@@ -55,82 +70,206 @@ final class WatchSession: NSObject, ObservableObject, WCSessionDelegate {
         })
     }
 
-    private func apply(_ reply: [String: Any]) {
-        connected = reply["connected"] as? Bool ?? false
-        limited = reply["limited"] as? Bool ?? false
-        pending = reply["pending"] as? String ?? ""
-        limit = reply["limit"] as? Double ?? -1
-        speed = reply["speed"] as? Double ?? 0
-        battery = reply["battery"] as? Double ?? 0
-        name = reply["name"] as? String ?? ""
-        if let m = reply["message"] as? String { message = m }
+    private func apply(_ p: [String: Any]) {
+        if (p["type"] as? String) == "alert" {
+            alert = p["message"] as? String
+            for i in 0..<4 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.8) {
+                    WKInterfaceDevice.current().play(.notification)
+                }
+            }
+            return
+        }
+        connected = p["connected"] as? Bool ?? false
+        limited = p["limited"] as? Bool ?? false
+        pending = p["pending"] as? String ?? ""
+        limit = p["limit"] as? Double ?? -1
+        name = p["name"] as? String ?? ""
+        antiTheft = p["antiTheft"] as? Bool ?? false
+        recording = p["recording"] as? Bool ?? false
+        pwmAlarm = p["pwmAlarm"] as? Double ?? 0
+        if let v = p["speed"] as? Double { speed = v }
+        if let v = p["battery"] as? Double { battery = v }
+        if let v = p["voltage"] as? Double { voltage = v }
+        if let v = p["pwm"] as? Double { pwm = v }
+        if let v = p["hasPWM"] as? Bool { hasPWM = v }
+        if let v = p["temp"] as? Double { temp = v }
+        if let v = p["trip"] as? Double { trip = v }
+        if let m = p["message"] as? String { message = m }
+        if !connected { speed = 0 }
+        lastUpdate = Date()
+
+        // Alerte PWM au poignet
+        if connected, hasPWM, pwmAlarm > 0, pwm >= pwmAlarm, Date().timeIntervalSince(lastHaptic) > 1 {
+            lastHaptic = Date()
+            WKInterfaceDevice.current().play(.directionDown)
+        }
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        DispatchQueue.main.async { self.apply(message) }
+    }
+
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        DispatchQueue.main.async { self.apply(applicationContext) }
+    }
+
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        DispatchQueue.main.async { self.apply(userInfo) }
     }
 
     func session(_ session: WCSession,
                  activationDidCompleteWith activationState: WCSessionActivationState,
                  error: Error?) {
-        DispatchQueue.main.async { self.send("status") }
+        DispatchQueue.main.async {
+            if !session.receivedApplicationContext.isEmpty { self.apply(session.receivedApplicationContext) }
+            self.send("status")
+        }
     }
 }
 
-struct WatchView: View {
-    @EnvironmentObject var session: WatchSession
+struct WatchRoot: View {
+    @EnvironmentObject var s: WatchSession
+
+    var body: some View {
+        TabView {
+            DashboardPage()
+            LimiterPage()
+            ControlsPage()
+        }
+        .tabViewStyle(.verticalPage)
+        .sheet(isPresented: Binding(get: { s.alert != nil }, set: { if !$0 { s.alert = nil } })) {
+            AlertPage()
+        }
+        .onAppear { s.send("status") }
+    }
+}
+
+struct DashboardPage: View {
+    @EnvironmentObject var s: WatchSession
+
+    var body: some View {
+        VStack(spacing: 2) {
+            HStack {
+                Circle().fill(s.connected ? Color.green : Color.red).frame(width: 7, height: 7)
+                Text(s.connected ? s.name : "Roue non connectée").font(.caption2).lineLimit(1)
+                Spacer()
+                if s.recording { Image(systemName: "record.circle").foregroundStyle(.red).font(.caption2) }
+                if s.engaged { Image(systemName: "lock.fill").foregroundStyle(.orange).font(.caption2) }
+            }
+            Text(String(format: "%.0f", s.speed))
+                .font(.system(size: 64, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(pwmColor)
+            Text("km/h").font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Label(String(format: "%.0f %%", s.battery), systemImage: "battery.75")
+                Spacer()
+                if s.hasPWM {
+                    Text(String(format: "PWM %.0f", s.pwm)).foregroundStyle(pwmColor)
+                }
+            }
+            .font(.caption)
+            HStack {
+                Text(String(format: "%.0f °C", s.temp))
+                Spacer()
+                Text(String(format: "%.1f km", s.trip))
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var pwmColor: Color {
+        guard s.hasPWM else { return .primary }
+        if s.pwm >= 80 { return .red }
+        if s.pwm >= 60 { return .orange }
+        return .primary
+    }
+}
+
+struct LimiterPage: View {
+    @EnvironmentObject var s: WatchSession
     @State private var confirm = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-                Image(systemName: session.pending.isEmpty ? (session.limited ? "lock.fill" : "lock.open.fill") : "hourglass")
+                Image(systemName: s.pending.isEmpty ? (s.limited ? "lock.fill" : "lock.open.fill") : "hourglass")
                     .font(.title2)
-                    .foregroundStyle(session.pending.isEmpty ? (session.limited ? Color.orange : Color.green) : Color.yellow)
-
-                Text(statusText)
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
-
-                if session.connected {
-                    Text(String(format: "%.0f km/h · %.0f %%", session.speed, session.battery))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                    .foregroundStyle(s.pending.isEmpty ? (s.limited ? Color.orange : Color.green) : Color.yellow)
+                Text(statusText).font(.headline).multilineTextAlignment(.center)
 
                 Button {
                     confirm = true
                 } label: {
-                    Label(engaged ? "Débrider" : "Brider 25", systemImage: engaged ? "lock.open" : "lock")
+                    Label(s.engaged ? "Débrider" : "Brider 25", systemImage: s.engaged ? "lock.open" : "lock")
                         .frame(maxWidth: .infinity)
                 }
-                .tint(engaged ? .green : .orange)
-                .disabled(session.busy || !session.connected)
+                .tint(s.engaged ? .green : .orange)
+                .disabled(s.busy || !s.connected)
 
-                if session.busy { ProgressView() }
-
-                if let m = session.message {
+                if s.busy { ProgressView() }
+                if let m = s.message {
                     Text(m).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
-
-                Button("Actualiser") { session.send("status") }
-                    .font(.footnote)
             }
-            .padding(.horizontal, 4)
         }
-        .confirmationDialog(engaged ? "Débrider la roue ?" : "Brider à 25 km/h ?",
-                            isPresented: $confirm) {
-            Button(engaged ? "Oui, débrider" : "Oui, brider", role: .destructive) {
-                session.send(engaged ? "release" : "engage")
+        .confirmationDialog(s.engaged ? "Débrider la roue ?" : "Brider à 25 km/h ?", isPresented: $confirm) {
+            Button(s.engaged ? "Oui, débrider" : "Oui, brider", role: .destructive) {
+                s.send(s.engaged ? "release" : "engage")
             }
             Button("Annuler", role: .cancel) {}
         }
-        .onAppear { session.send("status") }
     }
 
-    private var engaged: Bool { session.limited || session.pending == "engage" }
-
     private var statusText: String {
-        guard session.connected else { return "Roue non connectée" }
-        let limit = session.limit >= 0 ? String(format: "%.0f km/h", session.limit) : "—"
-        if session.pending == "engage" { return "Bridage en attente de l'arrêt" }
-        if session.pending == "release" { return "Débridage en attente de l'arrêt" }
-        return session.limited ? "Bridée à 25 km/h" : "Limite : \(limit)"
+        guard s.connected else { return "Roue non connectée" }
+        if s.pending == "engage" { return "Bridage en attente de l'arrêt" }
+        if s.pending == "release" { return "Débridage en attente de l'arrêt" }
+        let limit = s.limit >= 0 ? String(format: "%.0f km/h", s.limit) : "—"
+        return s.limited ? "Bridée à 25 km/h" : "Limite : \(limit)"
+    }
+}
+
+struct ControlsPage: View {
+    @EnvironmentObject var s: WatchSession
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                Button { s.send("horn") } label: {
+                    Label("Klaxon", systemImage: "speaker.wave.3.fill").frame(maxWidth: .infinity)
+                }
+                .tint(.yellow)
+                HStack {
+                    Button { s.send("light_on") } label: { Image(systemName: "lightbulb.fill") }
+                    Button { s.send("light_off") } label: { Image(systemName: "lightbulb.slash") }
+                }
+                .disabled(!s.connected)
+                if s.antiTheft {
+                    Label("Antivol armé", systemImage: "shield.lefthalf.filled").foregroundStyle(.orange)
+                    Button("Couper la sirène") { s.send("stopAlarm") }
+                }
+            }
+        }
+    }
+}
+
+struct AlertPage: View {
+    @EnvironmentObject var s: WatchSession
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill").font(.largeTitle).foregroundStyle(.red)
+            Text(s.alert ?? "").font(.headline).multilineTextAlignment(.center)
+            Button("Je vais bien") {
+                s.send("fallOK")
+                s.send("stopAlarm")
+                s.alert = nil
+            }
+            .tint(.green)
+        }
     }
 }

@@ -6,6 +6,18 @@ struct SettingsView: View {
 
     private let cellOptions = [16, 20, 24, 30, 32, 36, 40, 42]
 
+    @AppStorage("gpsEnabled") private var gpsEnabled = true
+    @AppStorage("autoTrips") private var autoTrips = true
+    @AppStorage("voiceEnabled") private var voiceEnabled = false
+    @AppStorage("voiceInterval") private var voiceInterval = 5
+    @AppStorage("voiceBattery") private var voiceBattery = true
+    @AppStorage("voicePWM") private var voicePWM = true
+    @AppStorage("fallDetection") private var fallDetection = false
+    @AppStorage("emergencyPhone") private var emergencyPhone = ""
+    @AppStorage("ntfyTopic") private var ntfyTopic = ""
+    @AppStorage("liveActivity") private var liveActivity = true
+    @AppStorage("watchPWMAlerts") private var watchPWMAlerts = true
+
     var body: some View {
         NavigationStack {
             Form {
@@ -22,6 +34,27 @@ struct SettingsView: View {
                     Text("Roue")
                 } footer: {
                     Text("InMotion n'est pas encore géré.")
+                }
+
+                Section {
+                    Toggle("Connexion automatique", isOn: $ble.autoConnect)
+                    ForEach(ble.knownWheels.sorted(by: { $0.value < $1.value }), id: \.key) { item in
+                        let id = item.key
+                        HStack {
+                            Text(item.value)
+                            Spacer()
+                            if id == ble.currentWheelID && ble.state == .connected {
+                                Text("Connectée").font(.caption).foregroundStyle(.green)
+                            }
+                        }
+                        .swipeActions {
+                            Button("Oublier", role: .destructive) { ble.forgetWheel(id) }
+                        }
+                    }
+                } header: {
+                    Text("Mes roues")
+                } footer: {
+                    Text("Dès qu'une de ces roues s'allume, l'iPhone s'y connecte tout seul, même appli fermée ou téléphone verrouillé (sauf si tu as fermé l'appli en la balayant). La montre reçoit les données via l'iPhone : une roue n'accepte qu'une seule connexion Bluetooth.")
                 }
 
                 Section {
@@ -48,6 +81,46 @@ struct SettingsView: View {
                     Text("Débridage")
                 } footer: {
                     Text("Valeur restaurée quand tu débrides. Elle est mémorisée automatiquement au premier bridage. 0 = tiltback désactivé (Begode).")
+                }
+
+                Section {
+                    Toggle("Enregistrer les trajets automatiquement", isOn: $autoTrips)
+                    Toggle("Tracé GPS", isOn: $gpsEnabled)
+                        .onChange(of: gpsEnabled) { _, on in if on { TripRecorder.shared.requestPermission() } }
+                } header: {
+                    Text("Trajets")
+                } footer: {
+                    Text("Pour enregistrer le GPS téléphone verrouillé, autorise la localisation « Toujours ».")
+                }
+
+                Section("Annonces vocales") {
+                    Toggle("Annonces dans les écouteurs", isOn: $voiceEnabled)
+                    if voiceEnabled {
+                        Stepper("Toutes les \(voiceInterval) min", value: $voiceInterval, in: 1...30)
+                        Toggle("Paliers de batterie (10 %)", isOn: $voiceBattery)
+                        Toggle("Alerte PWM", isOn: $voicePWM)
+                        Button("Tester") { VoiceAnnouncer.shared.speak("25 kilomètres heure, batterie 80 pour cent") }
+                    }
+                }
+
+                Section {
+                    Toggle("Détection de chute", isOn: $fallDetection)
+                    if fallDetection {
+                        TextField("Téléphone du contact (SMS)", text: $emergencyPhone)
+                            .keyboardType(.phonePad)
+                        TextField("Sujet ntfy (envoi automatique)", text: $ntfyTopic)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+                } header: {
+                    Text("Sécurité")
+                } footer: {
+                    Text("Après une chute probable, un compte à rebours de 30 s démarre avec sirène. Sans réponse : iOS prépare un SMS avec ta position (tu dois appuyer sur Envoyer, Apple n'autorise pas l'envoi automatique). Pour un envoi 100 % automatique, ton contact installe l'appli gratuite « ntfy » et s'abonne au même sujet (choisis un nom unique, ex. gyrocare-ton-prenom-1234).")
+                }
+
+                Section("Écran verrouillé et montre") {
+                    Toggle("Live Activity (Dynamic Island)", isOn: $liveActivity)
+                    Toggle("Vibration PWM sur la montre", isOn: $watchPWMAlerts)
                 }
 
                 Section("Alarmes du téléphone (son + vibration)") {

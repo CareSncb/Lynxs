@@ -11,6 +11,7 @@ targets:
     platform: iOS
     sources:
       - Sources
+      - Shared
     scheme: {}
     info:
       path: Sources/Info.plist
@@ -25,6 +26,11 @@ targets:
         NSBluetoothAlwaysUsageDescription: "LynxDash utilise le Bluetooth pour lire la télémétrie de ta gyroroue."
         UIBackgroundModes:
           - bluetooth-central
+          - location
+          - audio
+        NSSupportsLiveActivities: true
+        NSLocationWhenInUseUsageDescription: "LynxDash enregistre le tracé GPS de tes trajets et l'envoie à ton contact en cas de chute."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Permet d'enregistrer tes trajets et de détecter une chute même téléphone verrouillé."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: be.gyrocare.lynxdash
@@ -37,12 +43,39 @@ targets:
         CODE_SIGN_IDENTITY: ""
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
+      - target: LynxWidget
       - target: LynxWatch
         embed: true
         codeSign: false
         copy:
           destination: productsDirectory
           subpath: $(CONTENTS_FOLDER_PATH)/Watch
+  LynxWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - Widget
+      - Shared
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: LynxDash
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: be.gyrocare.lynxdash.widget
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""
+        SKIP_INSTALL: "YES"
   LynxWatch:
     type: application
     platform: watchOS

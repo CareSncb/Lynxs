@@ -75,6 +75,23 @@ struct WheelCommand {
     }
 }
 
+enum LightMode: Int, CaseIterable, Identifiable {
+    case off = 0, on = 1, special = 2
+    var id: Int { rawValue }
+}
+
+enum PedalsMode: Int, CaseIterable, Identifiable {
+    case hard = 0, medium = 1, soft = 2
+    var id: Int { rawValue }
+    var label: String {
+        switch self {
+        case .hard: return "Dur"
+        case .medium: return "Moyen"
+        case .soft: return "Souple"
+        }
+    }
+}
+
 protocol WheelProtocol: AnyObject {
     var brand: WheelBrand { get }
     var cellCount: Int { get set }
@@ -91,6 +108,12 @@ protocol WheelProtocol: AnyObject {
     func settingsBlockReason() -> String?
     /// Séquence de commandes pour régler la limite de vitesse.
     func speedLimitCommands(kmh: Int) -> [WheelCommand]
+    /// Phare : éteint / allumé / mode spécial (stroboscope Begode, auto Kingsong). Vide = non géré.
+    func lightCommands(_ mode: LightMode) -> [WheelCommand]
+    var supportsSpecialLight: Bool { get }
+    var specialLightLabel: String { get }
+    /// Mode des pédales.
+    func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand]
 }
 
 enum ProtocolDetector {

@@ -78,6 +78,7 @@ final class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    var currentWheelID: String? { peripheral?.identifier.uuidString }
     var crcFailures: Int { proto?.crcFailures ?? 0 }
     var rejectedFrames: Int { proto?.rejectedFrames ?? 0 }
     var speedLimitRange: ClosedRange<Int> { proto?.speedLimitRange ?? 10...99 }
@@ -95,6 +96,8 @@ final class BLEManager: NSObject, ObservableObject {
         static let normalLimit = "normalLimit"
         static let brand = "preferredBrand"
         static let pending = "pendingLimiterAction"
+        static let knownWheels = "knownWheels"
+        static let autoConnect = "autoConnect"
         static func cells(_ b: WheelBrand) -> String { "cells_\(b.rawValue)" }
     }
 
@@ -106,7 +109,18 @@ final class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    /// Roues déjà connectées (UUID → nom), reconnectées automatiquement dès qu'elles s'allument.
+    @Published private(set) var knownWheels: [String: String] =
+        UserDefaults.standard.dictionary(forKey: "knownWheels") as? [String: String] ?? [:]
+    @Published var autoConnect: Bool = UserDefaults.standard.object(forKey: "autoConnect") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(autoConnect, forKey: Keys.autoConnect)
+            if autoConnect { connectKnownWheels() } else { cancelPendingConnections() }
+        }
+    }
+
     private var central: CBCentralManager!
+    private var pendingPeripherals: [UUID: CBPeripheral] = [:]
     private var peripheral: CBPeripheral?
     private var characteristic: CBCharacteristic?
     private var proto: WheelProtocol?
@@ -128,7 +142,10 @@ final class BLEManager: NSObject, ObservableObject {
         normalLimit = defaults.object(forKey: Keys.normalLimit) as? Int
         pendingAction = LimiterAction(rawValue: defaults.string(forKey: Keys.pending) ?? "")
         super.init()
-        central = CBCentralManager(delegate: self, queue: .main)
+        central = CBCentralManager(delegate: self, queue: .main, options: [
+            CBCentralManagerOptionRestoreIdentifierKey: "be.gyrocare.lynxdash.central",
+            CBCentralManagerOptionShowPowerAlertKey: true
+        ])
     }
 
     // MARK: - Protocole
@@ -184,10 +201,12 @@ final class BLEManager: NSObject, ObservableObject {
         central.connect(wheel.peripheral, options: nil)
     }
 
+    /// Déconnexion manuelle : la reconnexion automatique reprend au prochain allumage de la roue
+    /// (relance de l'appli ou bouton « Connexion auto »).
     func disconnect() {
         userDisconnected = true
         if let p = peripheral { central.cancelPeripheralConnection(p) }
-        UserDefaults.standard.removeObject(forKey: Keys.lastWheel)
+        cancelPendingConnections()
         state = .idle
     }
 
@@ -201,16 +220,59 @@ final class BLEManager: NSObject, ObservableObject {
         resetProtocol()
     }
 
-    private func reconnectLastWheel() {
-        guard let str = UserDefaults.standard.string(forKey: Keys.lastWheel),
-              let uuid = UUID(uuidString: str),
-              let p = central.retrievePeripherals(withIdentifiers: [uuid]).first else { return }
-        userDisconnected = false
-        peripheral = p
-        connectedName = p.name ?? "Roue"
-        state = .connecting
-        prepareForNewConnection()
-        central.connect(p, options: nil)
+    /// Lance une connexion en attente vers chaque roue connue : iOS connecte automatiquement
+    /// la première qui s'allume, même en arrière-plan (ou relance l'appli si le système l'a fermée).
+    func connectKnownWheels() {
+        guard autoConnect, central.state == .poweredOn, state != .connected else { return }
+        let ids = knownWheels.keys.compactMap(UUID.init(uuidString:))
+        guard !ids.isEmpty else { return }
+        for p in central.retrievePeripherals(withIdentifiers: ids) where pendingPeripherals[p.identifier] == nil {
+            pendingPeripherals[p.identifier] = p
+            p.delegate = self
+            central.connect(p, options: nil)
+        }
+        if state != .connecting { state = .connecting }
+        if connectedName == nil { connectedName = "Recherche de tes roues…" }
+    }
+
+    private func migrateLastWheel() {
+        if let old = UserDefaults.standard.string(forKey: Keys.lastWheel), knownWheels[old] == nil {
+            knownWheels[old] = "Roue"
+            UserDefaults.standard.set(knownWheels, forKey: Keys.knownWheels)
+            UserDefaults.standard.removeObject(forKey: Keys.lastWheel)
+        }
+    }
+
+    private func cancelPendingConnections(except keep: UUID? = nil) {
+        for (id, p) in pendingPeripherals where id != keep {
+            central.cancelPeripheralConnection(p)
+        }
+        pendingPeripherals = pendingPeripherals.filter { $0.key == keep }
+    }
+
+    func forgetWheel(_ id: String) {
+        knownWheels.removeValue(forKey: id)
+        UserDefaults.standard.set(knownWheels, forKey: Keys.knownWheels)
+    }
+
+    private func rememberWheel(_ p: CBPeripheral) {
+        knownWheels[p.identifier.uuidString] = p.name ?? connectedName ?? "Roue"
+        UserDefaults.standard.set(knownWheels, forKey: Keys.knownWheels)
+    }
+
+    // MARK: - Commandes de réglage
+
+    var supportsSpecialLight: Bool { proto?.supportsSpecialLight ?? false }
+    var specialLightLabel: String { proto?.specialLightLabel ?? "" }
+
+    func setLight(_ mode: LightMode) {
+        guard state == .connected, let p = proto else { return }
+        send(p.lightCommands(mode))
+    }
+
+    func setPedals(_ mode: PedalsMode) {
+        guard state == .connected, let p = proto else { return }
+        send(p.pedalsCommands(mode))
     }
 
     // MARK: - Réception
@@ -244,6 +306,7 @@ final class BLEManager: NSObject, ObservableObject {
         lastFrameDate = Date()
         maxSpeed = max(maxSpeed, abs(d.speed))
         checkPendingAction(d)
+        TelemetryHub.shared.ingest(d, manager: self)
 
         let speedTriggered = speedAlarm > 0 && abs(d.speed) >= speedAlarm
         let pwmTriggered = d.hasPWM && pwmAlarm > 0 && d.pwm >= pwmAlarm
@@ -486,8 +549,9 @@ extension BLEManager: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            state = .idle
-            reconnectLastWheel()
+            if state != .connected { state = .idle }
+            migrateLastWheel()
+            connectKnownWheels()
         case .unauthorized:
             state = .unauthorized
         default:
@@ -511,10 +575,32 @@ extension BLEManager: CBCentralManagerDelegate {
         discovered.sort { $0.rssi > $1.rssi }
     }
 
+    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
+        // iOS a relancé l'appli en arrière-plan : on récupère la roue connectée ou en attente
+        guard let restored = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] else { return }
+        for p in restored {
+            p.delegate = self
+            if p.state == .connected {
+                peripheral = p
+                connectedName = p.name ?? knownWheels[p.identifier.uuidString]
+                state = .connected
+                prepareForNewConnection()
+                p.discoverServices([BLEManager.serviceUUID])
+            } else {
+                pendingPeripherals[p.identifier] = p
+            }
+        }
+    }
+
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        cancelPendingConnections(except: peripheral.identifier)
+        pendingPeripherals.removeAll()
+        self.peripheral = peripheral
+        userDisconnected = false
         state = .connected
-        connectedName = peripheral.name ?? connectedName
-        UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: Keys.lastWheel)
+        connectedName = peripheral.name ?? knownWheels[peripheral.identifier.uuidString] ?? connectedName
+        prepareForNewConnection()
+        rememberWheel(peripheral)
         peripheral.delegate = self
         peripheral.discoverServices([BLEManager.serviceUUID])
     }
@@ -522,21 +608,35 @@ extension BLEManager: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager,
                         didFailToConnect peripheral: CBPeripheral,
                         error: Error?) {
-        state = .idle
+        pendingPeripherals.removeValue(forKey: peripheral.identifier)
+        if state != .connected {
+            state = .idle
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.connectKnownWheels() }
+        }
     }
 
     func centralManager(_ central: CBCentralManager,
                         didDisconnectPeripheral peripheral: CBPeripheral,
                         error: Error?) {
+        guard peripheral.identifier == self.peripheral?.identifier else {
+            pendingPeripherals.removeValue(forKey: peripheral.identifier)
+            return
+        }
         characteristic = nil
+        TelemetryHub.shared.wheelDisconnected()
         if userDisconnected {
             state = .idle
             self.peripheral = nil
         } else {
-            // Reconnexion automatique (iOS attend que la roue revienne à portée)
+            // Roue éteinte ou hors de portée : on attend qu'une des roues connues se rallume
             state = .connecting
+            self.peripheral = nil
             prepareForNewConnection()
-            central.connect(peripheral, options: nil)
+            connectKnownWheels()
+            if pendingPeripherals[peripheral.identifier] == nil {
+                pendingPeripherals[peripheral.identifier] = peripheral
+                central.connect(peripheral, options: nil)
+            }
         }
     }
 }

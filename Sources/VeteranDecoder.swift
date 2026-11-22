@@ -27,6 +27,26 @@ final class VeteranDecoder: WheelProtocol {
         [WheelCommand(VeteranDecoder.speedLimitCommand(kmh: kmh))]
     }
 
+    let supportsSpecialLight = false
+    let specialLightLabel = ""
+
+    func lightCommands(_ mode: LightMode) -> [WheelCommand] {
+        let on = mode != .off
+        if last.newProtocol {
+            return [WheelCommand(VeteranDecoder.command(107, payload: [0x01, 0x80, 0x80, on ? 1 : 0]))]
+        }
+        return [WheelCommand(Array((on ? "SetLightON" : "SetLightOFF").utf8))]
+    }
+
+    func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand] {
+        if last.newProtocol {
+            let value: UInt8 = mode == .hard ? 3 : (mode == .medium ? 2 : 1)
+            return [WheelCommand(VeteranDecoder.command(107, payload: [0x01, 0x80, value]))]
+        }
+        let text = mode == .hard ? "SETh" : (mode == .medium ? "SETm" : "SETs")
+        return [WheelCommand(Array(text.utf8))]
+    }
+
     func feed(_ data: Data) -> [WheelData] {
         buffer.append(contentsOf: data)
         var results: [WheelData] = []

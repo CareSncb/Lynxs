@@ -1,10 +1,57 @@
 import SwiftUI
 import UIKit
 
+/// Écran principal à onglets.
+struct RootView: View {
+    @EnvironmentObject var ble: BLEManager
+    @ObservedObject private var safety = SafetyMonitor.shared
+
+    var body: some View {
+        TabView {
+            ContentView()
+                .tabItem { Label("Roue", systemImage: "gauge.with.dots.needle.67percent") }
+            TripsView()
+                .tabItem { Label("Trajets", systemImage: "map") }
+            WorkshopView()
+                .tabItem { Label("Atelier", systemImage: "wrench.and.screwdriver") }
+            SettingsView()
+                .tabItem { Label("Réglages", systemImage: "gearshape") }
+        }
+        .fullScreenCover(isPresented: Binding(get: { safety.fallCountdown != nil }, set: { _ in })) {
+            FallAlertView()
+        }
+    }
+}
+
+struct FallAlertView: View {
+    @ObservedObject private var safety = SafetyMonitor.shared
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "figure.fall").font(.system(size: 80)).foregroundStyle(.red)
+            Text("Chute détectée ?").font(.largeTitle.bold())
+            Text("Ton contact sera prévenu dans").font(.title3)
+            Text("\(safety.fallCountdown ?? 0) s")
+                .font(.system(size: 72, weight: .heavy, design: .rounded))
+                .monospacedDigit()
+            Button {
+                safety.cancelFallAlert()
+            } label: {
+                Text("Je vais bien")
+                    .font(.title2.bold())
+                    .frame(maxWidth: .infinity, minHeight: 70)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.green)
+            .padding(.horizontal)
+        }
+        .padding()
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject var ble: BLEManager
     @State private var showScanner = false
-    @State private var showSettings = false
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
@@ -25,6 +72,10 @@ struct ContentView: View {
                                charging: ble.data.isCharging)
 
                     LimiterCard()
+
+                    ControlsCard()
+
+                    AntiTheftCard()
 
                     LazyVGrid(columns: columns, spacing: 12) {
                         Tile(title: "PWM", value: ble.data.hasPWM ? String(format: "%.0f %%", ble.data.pwm) : "—",
@@ -54,13 +105,20 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button { showSettings = true } label: { Image(systemName: "gearshape") }
+                    if TripRecorder.shared.isRecording {
+                        Label("Enregistrement", systemImage: "record.circle").foregroundStyle(.red)
+                    }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if ble.state == .connected || ble.state == .connecting {
                         Button("Déconnecter", role: .destructive) { ble.disconnect() }
                     } else {
-                        Button { showScanner = true } label: {
+                        Menu {
+                            Button("Chercher une roue") { showScanner = true }
+                            if !ble.knownWheels.isEmpty {
+                                Button("Reconnecter mes roues") { ble.connectKnownWheels() }
+                            }
+                        } label: {
                             Label("Connecter", systemImage: "antenna.radiowaves.left.and.right")
                         }
                     }
@@ -68,9 +126,6 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showScanner) {
                 ScannerView().environmentObject(ble)
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView().environmentObject(ble)
             }
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
@@ -333,6 +388,92 @@ struct HoldButton: View {
         } onPressingChanged: { isPressing in
             pressing = isPressing
             if isPressing { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+        }
+    }
+}
+
+// MARK: - Commandes de la roue
+
+struct ControlsCard: View {
+    @EnvironmentObject var ble: BLEManager
+    @State private var light: LightMode = .on
+    @State private var pedals: PedalsMode = .medium
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Commandes").font(.headline)
+                Spacer()
+                Button {
+                    SafetyMonitor.shared.horn()
+                } label: {
+                    Label("Klaxon", systemImage: "speaker.wave.3.fill")
+                }
+                .buttonStyle(.bordered)
+                .tint(.yellow)
+            }
+            Picker("Phare", selection: $light) {
+                Text("Phare éteint").tag(LightMode.off)
+                Text("Allumé").tag(LightMode.on)
+                if ble.supportsSpecialLight { Text(ble.specialLightLabel).tag(LightMode.special) }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: light) { _, mode in ble.setLight(mode) }
+
+            Picker("Pédales", selection: $pedals) {
+                ForEach(PedalsMode.allCases) { Text("Pédales \($0.label.lowercased())").tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: pedals) { _, mode in ble.setPedals(mode) }
+        }
+        .disabled(ble.state != .connected)
+        .opacity(ble.state == .connected ? 1 : 0.5)
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+// MARK: - Antivol
+
+struct AntiTheftCard: View {
+    @EnvironmentObject var ble: BLEManager
+    @ObservedObject private var safety = SafetyMonitor.shared
+    @State private var confirm = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: safety.antiTheftArmed ? "shield.lefthalf.filled" : "shield")
+                    .foregroundStyle(safety.antiTheftArmed ? .orange : .secondary)
+                Text(safety.antiTheftArmed ? "Antivol armé" : "Antivol").font(.headline)
+                Spacer()
+                if safety.sirenActive {
+                    Button("Couper la sirène") { safety.stopSiren() }
+                        .buttonStyle(.borderedProminent).tint(.red)
+                }
+            }
+            Text("Bride la roue à \(SafetyMonitor.antiTheftLimit) km/h et déclenche une sirène sur le téléphone et la montre si elle bouge. Le téléphone doit rester à portée Bluetooth.")
+                .font(.caption).foregroundStyle(.secondary)
+            Button(safety.antiTheftArmed ? "Désarmer" : "Armer l'antivol") {
+                if safety.antiTheftArmed {
+                    Task { await safety.disarmAntiTheft() }
+                } else {
+                    confirm = true
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(ble.state != .connected && !safety.antiTheftArmed)
+            if let m = safety.antiTheftMessage {
+                Text(m).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .alert("Armer l'antivol ?", isPresented: $confirm) {
+            Button("Armer") { Task { await safety.armAntiTheft() } }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("La roue sera bridée à \(SafetyMonitor.antiTheftLimit) km/h jusqu'au désarmement.")
         }
     }
 }
