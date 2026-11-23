@@ -44,6 +44,12 @@ struct TripsView: View {
                     NavigationLink { LeaderboardView() } label: {
                         Label("Classement et défis entre amis", systemImage: "trophy.fill")
                     }
+                    NavigationLink { ChargingSpotsView() } label: {
+                        Label("Prises partagées du club", systemImage: "powerplug.fill")
+                    }
+                    NavigationLink { WheelFinderView() } label: {
+                        Label("Où est ma roue ?", systemImage: "location.magnifyingglass")
+                    }
                     NavigationLink { ZonesView() } label: {
                         Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse")
                     }
@@ -167,6 +173,15 @@ struct TripDetailView: View {
                 }
             }
 
+            Section {
+                NavigationLink { TripReplayView(trip: trip) } label: {
+                    Label("Rejouer le trajet", systemImage: "play.circle.fill")
+                }
+                NavigationLink { OverlayVideoView(trip: trip) } label: {
+                    Label("Vidéo de télémétrie à incruster", systemImage: "film.stack")
+                }
+            }
+
             Section("Résumé") {
                 row("Distance", String(format: "%.2f km", trip.distance))
                 row("Durée", durationText(trip.duration))
@@ -181,6 +196,8 @@ struct TripDetailView: View {
                 if let e = trip.recoveredWh { row("Énergie récupérée", String(format: "%.0f Wh", e)) }
                 if let p = trip.maxPower { row("Puissance max", String(format: "%.0f W", p)) }
                 if let e = trip.energyWh, trip.distance >= 1 { row("Consommation", String(format: "%.1f Wh / km", e / trip.distance)) }
+                if let cost = ChargeAssistant.cost(of: trip) { row("Coût électricité", String(format: "%.2f €", cost)) }
+                if let t = trip.ambientTemp { row("Température extérieure", String(format: "%.0f °C", t)) }
             }
 
             Section("Vitesse et PWM") {

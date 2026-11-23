@@ -27,6 +27,8 @@ struct Trip: Codable, Identifiable {
     var energyWh: Double?
     var recoveredWh: Double?
     var maxPower: Double?
+    /// Température extérieure au départ (météo), pour l'autonomie apprise.
+    var ambientTemp: Double?
     var batteryStart: Double = 0
     var batteryEnd: Double = 0
     var samples: [TripSample] = []
@@ -68,6 +70,11 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
     @Published private(set) var maxPower: Double = 0
     var averageSpeed: Double { rideSeconds > 30 ? currentDistance / (rideSeconds / 3600) : 0 }
     var averagePower: Double { rideSeconds > 30 ? energyWh / (rideSeconds / 3600) : 0 }
+    /// Consommation du trajet en cours (% / km).
+    var liveConsumption: Double? {
+        guard let t = trip, currentDistance >= 1, t.batteryStart > t.batteryEnd else { return nil }
+        return (t.batteryStart - t.batteryEnd) / currentDistance
+    }
 
     private let location = CLLocationManager()
     private var trip: Trip?
@@ -203,6 +210,7 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
     private func start(_ d: WheelData, wheelName: String) {
         trip = Trip(start: Date(), end: Date(), wheelName: wheelName, brand: d.brand.shortLabel,
                     batteryStart: d.batteryPercent, batteryEnd: d.batteryPercent)
+        trip?.ambientTemp = RideWeather.shared.forecast?.temperature
         startTotal = d.totalDistance > 0 ? d.totalDistance : nil
         lastTotal = d.totalDistance > 0 ? d.totalDistance : nil
         wheelDistance = 0

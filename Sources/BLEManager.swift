@@ -437,13 +437,7 @@ final class BLEManager: NSObject, ObservableObject {
         checkPendingAction(d)
         TelemetryHub.shared.ingest(d, manager: self)
 
-        let speedTriggered = speedAlarm > 0 && abs(d.speed) >= speedAlarm
-        let pwmTriggered = d.hasPWM && pwmAlarm > 0 && d.pwm >= pwmAlarm
-        if (speedTriggered || pwmTriggered) && Date().timeIntervalSince(lastAlarm) > 1.0 {
-            lastAlarm = Date()
-            AudioServicesPlayAlertSound(SystemSoundID(1005))
-            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-        }
+        // Alarmes vitesse / PWM / marge de sécurité : gérées par SafetyAlarms (via TelemetryHub)
     }
 
     /// Kingsong n'envoie rien tant qu'on ne lui a rien demandé sur certains modèles :

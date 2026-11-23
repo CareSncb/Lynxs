@@ -143,7 +143,7 @@ final class Leaderboard: ObservableObject {
     private var fetcher: MQTTFetcher?
 
     /// Identifiant anonyme de l'appareil dans le club.
-    private var memberID: String {
+    var memberID: String {
         if let id = UserDefaults.standard.string(forKey: "clubMemberID") { return id }
         let id = UUID().uuidString.prefix(12).lowercased()
         UserDefaults.standard.set(String(id), forKey: "clubMemberID")
@@ -151,7 +151,9 @@ final class Leaderboard: ObservableObject {
     }
 
     private var cleanCode: String { code.trimmingCharacters(in: .whitespaces).lowercased() }
-    private var base: String { "lynxdash/club/\(LiveCrypto.channel(for: "club:" + cleanCode))" }
+    var base: String { "lynxdash/club/\(LiveCrypto.channel(for: "club:" + cleanCode))" }
+    var cryptoCode: String { "club:" + cleanCode }
+    var hasClub: Bool { !cleanCode.isEmpty && !myName.isEmpty }
 
     static var currentMonth: String {
         let c = Calendar.current.dateComponents([.year, .month], from: Date())
@@ -216,7 +218,7 @@ final class Leaderboard: ObservableObject {
             var goal: ClubGoal?
             for (topic, payload) in results {
                 guard let text = String(data: payload, encoding: .utf8),
-                      let clear = Self.open(text, code: key) else { continue }
+                      let clear = Self.decrypt(text, code: key) else { continue }
                 if topic.hasSuffix("/goal") {
                     goal = try? JSONDecoder().decode(ClubGoal.self, from: clear)
                 } else if let s = try? JSONDecoder().decode(ClubStats.self, from: clear), s.member != mine.member {
@@ -230,7 +232,7 @@ final class Leaderboard: ObservableObject {
         }
     }
 
-    private static func open(_ base64: String, code: String) -> Data? {
+    static func decrypt(_ base64: String, code: String) -> Data? {
         guard let data = Data(base64Encoded: base64),
               let box = try? AES.GCM.SealedBox(combined: data) else { return nil }
         return try? AES.GCM.open(box, using: LiveCrypto.key(for: code))

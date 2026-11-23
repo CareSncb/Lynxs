@@ -23,6 +23,21 @@ enum Prefs {
     static var limiterNotification: Bool { bool("limiterNotification", true) }
     /// Notification météo à la connexion de la roue.
     static var weatherAlerts: Bool { bool("weatherAlerts", true) }
+    /// Marge de sécurité mini avant les bips (%, 0 = désactivée).
+    static var marginAlarm: Double { d.object(forKey: "marginAlarm") as? Double ?? 20 }
+    /// Vitesse max à vide batterie pleine (km/h), pour estimer la marge sans PWM.
+    static var topSpeedAtFull: Double { d.object(forKey: "topSpeedAtFull") as? Double ?? 0 }
+    /// Bips progressifs générés (sinon son système).
+    static var alarmBeeps: Bool { bool("alarmBeeps", true) }
+    /// Courant moyen sur 15 s déclenchant l'alarme de charge prolongée (A, 0 = désactivée).
+    static var currentAlarm: Double { d.object(forKey: "currentAlarm") as? Double ?? 0 }
+    static var autoLight: Bool { bool("autoLight", false) }
+    static var engineSound: Bool { bool("engineSound", false) }
+    static var engineStyle: String { d.string(forKey: "engineStyle") ?? EngineSound.Style.electric.rawValue }
+    static var engineVolume: Double { d.object(forKey: "engineVolume") as? Double ?? 0.6 }
+    static var kwhPrice: Double { d.object(forKey: "kwhPrice") as? Double ?? 0.35 }
+    static var batteryWh: Double { d.object(forKey: "batteryWh") as? Double ?? 0 }
+    static var storageReminder: Bool { bool("storageReminder", true) }
 }
 
 /// Distribue chaque trame de télémétrie aux services de l'appli (appelé sur le thread principal).
@@ -35,10 +50,15 @@ final class TelemetryHub {
         if !sessionStarted {
             sessionStarted = true
             RideWeather.shared.wheelConnected()
+            ChargeAssistant.shared.wheelConnected(name: manager.connectedName)
             Leaderboard.shared.publishMyStats()
         }
         BlackBox.shared.ingest(d, manager: manager)
         BatteryHealth.shared.ingest(d, manager: manager)
+        SafetyAlarms.shared.ingest(d, manager: manager)
+        ChargeAssistant.shared.ingest(d)
+        AutoLight.shared.ingest(manager: manager)
+        EngineSound.shared.ingest(d, manager: manager)
         TripRecorder.shared.ingest(d, wheelName: manager.connectedName ?? "Roue")
         SafetyMonitor.shared.ingest(d, manager: manager)
         VoiceAnnouncer.shared.ingest(d, manager: manager)
@@ -56,6 +76,12 @@ final class TelemetryHub {
         sessionStarted = false
         BlackBox.shared.wheelDisconnected()
         BatteryHealth.shared.wheelDisconnected()
+        let ble = BLEManager.shared
+        WheelFinder.wheelDisconnected(name: ble.connectedName, battery: ble.data.batteryPercent)
+        ChargeAssistant.shared.wheelDisconnected(name: ble.connectedName, battery: ble.data.batteryPercent)
+        SafetyAlarms.shared.wheelDisconnected()
+        AutoLight.shared.wheelDisconnected()
+        EngineSound.shared.wheelDisconnected()
         TripRecorder.shared.wheelDisconnected()
         SafetyMonitor.shared.wheelDisconnected()
         LiveActivityController.shared.end()

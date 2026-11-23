@@ -20,6 +20,17 @@ struct SettingsView: View {
     @AppStorage("watchRemote") private var watchRemote = true
     @AppStorage("limiterNotification") private var limiterNotification = true
     @AppStorage("weatherAlerts") private var weatherAlerts = true
+    @AppStorage("marginAlarm") private var marginAlarm = 20.0
+    @AppStorage("topSpeedAtFull") private var topSpeedAtFull = 0.0
+    @AppStorage("alarmBeeps") private var alarmBeeps = true
+    @AppStorage("currentAlarm") private var currentAlarm = 0.0
+    @AppStorage("autoLight") private var autoLight = false
+    @AppStorage("engineSound") private var engineSound = false
+    @AppStorage("engineStyle") private var engineStyle = EngineSound.Style.electric.rawValue
+    @AppStorage("engineVolume") private var engineVolume = 0.6
+    @AppStorage("kwhPrice") private var kwhPrice = 0.35
+    @AppStorage("batteryWh") private var batteryWh = 0.0
+    @AppStorage("storageReminder") private var storageReminder = true
     @AppStorage("tempAlert") private var tempAlert = 65.0
     @State private var maxSpeedDraft: Double = 40
     @State private var askPinMaxSpeed = false
@@ -111,6 +122,67 @@ struct SettingsView: View {
                     Text("Trajets")
                 } footer: {
                     Text("Pour enregistrer le GPS téléphone verrouillé, autorise la localisation « Toujours ».")
+                }
+
+                Section {
+                    Stepper(marginAlarm == 0 ? "Marge de sécurité : désactivée" : "Bips sous \(Int(marginAlarm)) % de marge",
+                            value: $marginAlarm, in: 0...50, step: 5)
+                    if !ble.data.hasPWM {
+                        Stepper(topSpeedAtFull == 0 ? "Vitesse max à 100 % : à régler" : "Vitesse max à 100 % : \(Int(topSpeedAtFull)) km/h",
+                                value: $topSpeedAtFull, in: 0...120, step: 1)
+                    }
+                    Toggle("Bips progressifs dans les écouteurs", isOn: $alarmBeeps)
+                    Button("Tester les bips") {
+                        for (i, f) in [1100.0, 1500, 1900, 2200].enumerated() {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.35) { Beeper.shared.beep(frequency: f, duration: 0.08) }
+                        }
+                    }
+                    Stepper(currentAlarm == 0 ? "Charge prolongée : désactivée" : "Charge prolongée : \(Int(currentAlarm)) A sur 15 s",
+                            value: $currentAlarm, in: 0...200, step: 10)
+                } header: {
+                    Text("Alarmes de sécurité")
+                } footer: {
+                    Text("La marge de sécurité est la réserve de puissance restante (100 % − PWM). Sous le seuil, les bips s'accélèrent et montent dans les aigus à mesure que la marge fond. Sans PWM envoyé par la roue, elle est estimée avec la vitesse max à pleine charge. Les alarmes vitesse et PWM de la roue utilisent les mêmes bips.")
+                }
+
+                Section {
+                    Toggle("Phare automatique (coucher du soleil)", isOn: $autoLight)
+                    Toggle("Son moteur virtuel", isOn: $engineSound)
+                    if engineSound {
+                        Picker("Style", selection: $engineStyle) {
+                            ForEach(EngineSound.Style.allCases) { Text($0.rawValue).tag($0.rawValue) }
+                        }
+                        Slider(value: $engineVolume, in: 0.1...1) { Text("Volume") }
+                    }
+                } header: {
+                    Text("Ambiance")
+                } footer: {
+                    Text("Phare : allumé 10 min avant le coucher du soleil, éteint après le lever (calculé selon ta position). Un réglage manuel est respecté jusqu'au prochain changement jour/nuit.")
+                }
+
+                Section {
+                    HStack {
+                        Text("Prix du kWh")
+                        Spacer()
+                        TextField("0,35", value: $kwhPrice, format: .number.precision(.fractionLength(2)))
+                            .keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 80)
+                        Text("€")
+                    }
+                    HStack {
+                        Text("Capacité batterie")
+                        Spacer()
+                        TextField("ex. 1800", value: $batteryWh, format: .number)
+                            .keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(width: 80)
+                        Text("Wh")
+                    }
+                    if let c = ChargeAssistant.costPer100km {
+                        LabeledContent("Coût moyen", value: String(format: "%.2f € / 100 km", c))
+                    }
+                    Toggle("Rappel de stockage (2 semaines)", isOn: $storageReminder)
+                } header: {
+                    Text("Charge et coût")
+                } footer: {
+                    Text("Le rappel prévient si la roue reste 2 semaines sans rouler à plus de 75 % ou moins de 35 % : stockée vers 50–60 %, la batterie vieillit moins vite.")
                 }
 
                 Section("Annonces vocales") {

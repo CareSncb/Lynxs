@@ -49,6 +49,14 @@ iOS 18 minimum, watchOS 10 minimum (watchOS 11 pour la Live Activity sur la mont
 - **Classement et défis entre amis** : kilomètres du mois, records, défi collectif (données chiffrées avec le code du club).
 - **Atelier** : prochaine révision et relances clients (WhatsApp / SMS), demandes de rendez-vous envoyées depuis l'appli du client (lien `lynxdash://rdv`), fiche diagnostic enrichie (santé batterie, incidents).
 
+## Sécurité et confort (inspirés d'EUC World et DarknessBot)
+- **Marge de sécurité dynamique** (100 % − PWM, estimée sans PWM) avec **bips progressifs** dans les écouteurs ; alarme de **charge prolongée** (courant moyen sur 15 s).
+- **Phare automatique** au coucher du soleil, **son moteur virtuel** (3 styles).
+- **Profils de conduite** (Ville, Balade, Sport… modifiables) : bridage + pédales + alarmes en un geste, aussi via Siri / Raccourcis.
+- **Autonomie apprise** sur tes trajets (vitesse, froid), **tableau de bord personnalisable**.
+- **Rejouer un trajet** (graphique ↔ carte) et **vidéo de télémétrie à incruster** (fond vert ou HEVC transparent, 9:16 ou 16:9).
+- **Assistant de charge** (heure de fin), **rappel de stockage**, **coût électricité** ; **Où est ma roue ?** ; **prises partagées** du club.
+
 ## Avant de rouler
 Teste le bridage roue posée, puis vérifie la nouvelle limite sur un petit trajet à basse vitesse.
 L'appli n'a pas été testée sur une roue réelle : confirme toujours la limite affichée.

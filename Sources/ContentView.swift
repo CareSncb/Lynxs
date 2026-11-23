@@ -71,6 +71,8 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     header
                     hero
+                    ChargeCard()
+                    ProfileBar()
                     quickActions
                     if ble.isLimited { BelgiumBadge() }
                     WeatherCard()
@@ -78,7 +80,7 @@ struct ContentView: View {
                                showPWM: ble.data.hasPWM, maxSpeed: ble.maxSpeed)
                         .frame(height: 250)
                         .glassCard()
-                    realtimeGrid
+                    DashboardGrid()
                     LimiterCard()
                     ControlsCard()
                     AntiTheftCard()
@@ -99,6 +101,9 @@ struct ContentView: View {
             }
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onReceive(NotificationCenter.default.publisher(for: .autoLightChanged)) { note in
+            if let on = note.object as? Bool { lightOn = on }
+        }
     }
 
     // MARK: En-tête
@@ -224,8 +229,9 @@ struct ContentView: View {
     }
 
     private var rangeText: String {
-        guard connected, let c = TripStore.shared.averageConsumption, c > 0 else { return "Autonomie —" }
-        return String(format: "≈ %.0f km", ble.data.batteryPercent / c)
+        guard connected, let e = RangePredictor.estimate(battery: ble.data.batteryPercent, wheelName: ble.connectedName)
+        else { return "Autonomie —" }
+        return String(format: "≈ %.0f km", e.km)
     }
 
     private func infoPill(icon: String, text: String) -> some View {
