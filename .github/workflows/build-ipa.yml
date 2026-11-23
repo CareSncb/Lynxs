@@ -103,21 +103,46 @@ jobs:
           path: LynxDash-Watch.ipa
 
   publish:
-    name: Déposer les IPA dans la branche "ipa"
-    needs: [iphone, iphone-watch]
-    if: always() && needs.iphone.result == 'success'
+    name: Déposer l'IPA iPhone dans la branche "ipa"
+    needs: [iphone]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
+          name: LynxDash-ipa
           path: out
       - name: Publier
         run: |
-          mkdir site && cd site
-          find ../out -name "*.ipa" -exec cp {} . \;
-          git init -q -b ipa
+          git clone --depth 1 --branch ipa "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" site || (mkdir site && cd site && git init -q -b ipa)
+          cd site
+          cp ../out/*.ipa .
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git add -A
-          git commit -qm "IPA ${GITHUB_SHA::7}"
-          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ipa
+          git commit -qm "IPA iPhone ${GITHUB_SHA::7}" || true
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ipa
+
+  publish-watch:
+    name: Déposer l'IPA montre dans la branche "ipa"
+    needs: [iphone-watch]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: LynxDash-Watch-ipa
+          path: out
+      - name: Publier
+        run: |
+          for i in 1 2 3; do
+            rm -rf site
+            git clone --depth 1 --branch ipa "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" site
+            cd site
+            cp ../out/*.ipa .
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add -A
+            git commit -qm "IPA montre ${GITHUB_SHA::7}" || true
+            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ipa && break
+            cd ..
+            sleep 5
+          done
