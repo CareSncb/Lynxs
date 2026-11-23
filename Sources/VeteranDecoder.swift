@@ -141,6 +141,9 @@ final class VeteranDecoder: WheelProtocol {
         }
 
         // Comme EUC World : à partir de 47 octets de données, le CRC est obligatoire
+        // Firmware récent : toutes les vraies trames ont un CRC. Une trame sans CRC valide
+        // est alors un collage de deux paquets Bluetooth : on la rejette.
+        if last.newProtocol && !(d.crcChecked && d.crcValid) { return nil }
         if Int(f[3]) >= 47 {
             guard d.crcValid else { return nil }
             d.newProtocol = true

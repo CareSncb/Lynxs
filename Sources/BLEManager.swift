@@ -238,6 +238,8 @@ final class BLEManager: NSObject, ObservableObject {
     }
 
     private func prepareForNewConnection() {
+        lastAccepted = nil
+        consecutiveRejects = 0
         framesReceived = 0
         data = WheelData()
         resetProtocol()
@@ -395,7 +397,36 @@ final class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    // Filtre anti-valeurs aberrantes (toutes marques)
+    private var lastAccepted: WheelData?
+    private var lastAcceptedDate = Date.distantPast
+    private var consecutiveRejects = 0
+    @Published private(set) var outliersRejected = 0
+
+    /// Rejette une trame dont les valeurs sautent de façon physiquement impossible.
+    private func isPlausible(_ d: WheelData) -> Bool {
+        guard let p = lastAccepted, consecutiveRejects < 8 else { return true }
+        let dt = max(0.05, Date().timeIntervalSince(lastAcceptedDate))
+        guard dt < 5 else { return true }
+        if p.voltage > 0, abs(d.voltage - p.voltage) > max(6, p.voltage * 0.12) { return false }
+        if abs(abs(d.speed) - abs(p.speed)) > 25 * max(1, dt) { return false }
+        if p.totalDistance > 0, d.totalDistance > 0 {
+            let delta = d.totalDistance - p.totalDistance
+            if delta < -0.05 || delta > 0.1 * max(1, dt) { return false }
+        }
+        if d.hasPWM, p.hasPWM, abs(d.pwm - p.pwm) > 60 { return false }
+        return true
+    }
+
     private func handle(_ d: WheelData) {
+        if !isPlausible(d) {
+            consecutiveRejects += 1
+            outliersRejected += 1
+            return
+        }
+        consecutiveRejects = 0
+        lastAccepted = d
+        lastAcceptedDate = Date()
         data = d
         framesReceived += 1
         lastFrameDate = Date()

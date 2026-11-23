@@ -172,6 +172,7 @@ struct SettingsView: View {
                 Section("Diagnostic") {
                     row("Trames reçues", "\(ble.framesReceived)")
                     row("Trames rejetées", "\(ble.rejectedFrames)")
+                    row("Valeurs aberrantes filtrées", "\(ble.outliersRejected)")
                     if ble.activeBrand == .leaperkim {
                         row("CRC", ble.data.crcChecked ? (ble.data.crcValid ? "OK" : "Échecs : \(ble.crcFailures)") : "Non présent")
                     }

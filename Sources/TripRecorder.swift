@@ -76,6 +76,8 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
     private var stoppedSince: Date?
     private var disconnectTimer: Timer?
     private var gpsDistance: Double = 0
+    private var lastTotal: Double?
+    private var wheelDistance: Double = 0
     private var locationActive = false
     private var lastGPS: CLLocation?
 
@@ -169,18 +171,24 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         t.maxSpeed = max(t.maxSpeed, abs(d.speed))
         t.maxTemp = max(t.maxTemp, d.temperature)
         if d.hasPWM { t.maxPWM = max(t.maxPWM ?? 0, d.pwm) }
-        t.batteryEnd = d.batteryPercent
+        // Batterie de fin : médiane des 10 derniers relevés (insensible aux valeurs isolées)
+        let recent = t.samples.suffix(10).map(\.battery).sorted()
+        t.batteryEnd = recent.isEmpty ? d.batteryPercent : recent[recent.count / 2]
         t.rideSeconds = rideSeconds
         if d.hasBatteryCurrent {
             t.energyWh = energyWh
             t.recoveredWh = recoveredWh
             t.maxPower = maxPower
         }
-        if let s0 = startTotal, d.totalDistance > 0, d.totalDistance >= s0 {
-            t.distance = d.totalDistance - s0
-        } else {
-            t.distance = gpsDistance / 1000
+        // Distance : somme des petits incréments du compteur de la roue (les sauts sont ignorés)
+        if d.totalDistance > 0 {
+            if let prev = lastTotal {
+                let delta = d.totalDistance - prev
+                if delta > 0 && delta < 0.2 { wheelDistance += delta }
+            }
+            lastTotal = d.totalDistance
         }
+        t.distance = wheelDistance > 0 ? wheelDistance : gpsDistance / 1000
         trip = t
         currentDistance = t.distance
 
@@ -196,6 +204,8 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         trip = Trip(start: Date(), end: Date(), wheelName: wheelName, brand: d.brand.shortLabel,
                     batteryStart: d.batteryPercent, batteryEnd: d.batteryPercent)
         startTotal = d.totalDistance > 0 ? d.totalDistance : nil
+        lastTotal = d.totalDistance > 0 ? d.totalDistance : nil
+        wheelDistance = 0
         gpsDistance = 0
         lastGPS = nil
         stoppedSince = nil
@@ -285,7 +295,61 @@ final class TripStore: ObservableObject {
         let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
         let decoder = JSONDecoder()
         trips = files.compactMap { try? decoder.decode(Trip.self, from: Data(contentsOf: $0)) }
+            .map { trip in
+                let fixed = TripStore.repaired(trip)
+                if fixed.distance != trip.distance || fixed.batteryEnd != trip.batteryEnd || fixed.maxSpeed != trip.maxSpeed {
+                    if let data = try? JSONEncoder().encode(fixed) {
+                        try? data.write(to: folder.appendingPathComponent("\(fixed.id.uuidString).json"), options: .atomic)
+                    }
+                }
+                return fixed
+            }
             .sorted { $0.start > $1.start }
+    }
+
+    /// Corrige un trajet enregistré avec des valeurs aberrantes (avant le filtre de cohérence).
+    static func repaired(_ trip: Trip) -> Trip {
+        var t = trip
+        let s = t.samples
+        guard s.count >= 5 else { return t }
+
+        // Valeurs isolées : on compare chaque relevé à la médiane de ses voisins
+        func despiked(_ values: [Double], tolerance: Double) -> [Double] {
+            values.indices.compactMap { i in
+                let window = values[max(0, i - 2)...min(values.count - 1, i + 2)].sorted()
+                let median = window[window.count / 2]
+                return abs(values[i] - median) <= tolerance ? values[i] : nil
+            }
+        }
+        let speeds = despiked(s.map(\.speed), tolerance: 15)
+        if let m = speeds.max() { t.maxSpeed = m }
+        let pwms = despiked(s.compactMap(\.pwm), tolerance: 20)
+        if let m = pwms.max() { t.maxPWM = m }
+        let batteries = despiked(s.map(\.battery), tolerance: 8)
+        if let first = batteries.first, let last = batteries.last {
+            t.batteryStart = first
+            t.batteryEnd = last
+        }
+
+        // Distance : GPS si disponible, sinon intégration de la vitesse
+        let coords = t.coordinates
+        var gps = 0.0
+        if coords.count > 1 {
+            for i in 1..<coords.count {
+                let a = CLLocation(latitude: coords[i - 1].latitude, longitude: coords[i - 1].longitude)
+                let b = CLLocation(latitude: coords[i].latitude, longitude: coords[i].longitude)
+                let step = b.distance(from: a)
+                if step < 200 { gps += step }
+            }
+        }
+        var integrated = 0.0
+        for i in 1..<s.count {
+            let dt = s[i].t - s[i - 1].t
+            if dt > 0 && dt < 10 { integrated += min(s[i].speed, 100) * dt / 3600 }
+        }
+        let reference = gps > 100 ? gps / 1000 : integrated
+        if reference > 0, t.distance > reference * 1.5 + 0.5 { t.distance = reference }
+        return t
     }
 
     func save(_ trip: Trip) {
