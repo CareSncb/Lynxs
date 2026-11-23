@@ -76,6 +76,7 @@ final class SafetyMonitor: ObservableObject {
 
     private func startFallCountdown(reason: String) {
         guard fallCountdown == nil else { return }
+        BlackBox.shared.trigger(reason)
         fallAlertSent = false
         fallCountdown = 30
         TripRecorder.shared.requestOneShotLocation()

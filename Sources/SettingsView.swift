@@ -19,6 +19,7 @@ struct SettingsView: View {
     @AppStorage("watchPWMAlerts") private var watchPWMAlerts = true
     @AppStorage("watchRemote") private var watchRemote = true
     @AppStorage("limiterNotification") private var limiterNotification = true
+    @AppStorage("weatherAlerts") private var weatherAlerts = true
     @AppStorage("tempAlert") private var tempAlert = 65.0
     @State private var maxSpeedDraft: Double = 40
     @State private var askPinMaxSpeed = false
@@ -159,6 +160,7 @@ struct SettingsView: View {
                     Toggle("Télécommande « À l'écoute »", isOn: $watchRemote)
                         .onChange(of: watchRemote) { _, _ in WatchRemote.shared.settingChanged() }
                     Toggle("Notification Brider / Débrider", isOn: $limiterNotification)
+                    Toggle("Alerte météo au départ", isOn: $weatherAlerts)
                     Toggle("Vibration PWM sur la montre (app montre)", isOn: $watchPWMAlerts)
                 } header: {
                     Text("Écran verrouillé et Apple Watch")

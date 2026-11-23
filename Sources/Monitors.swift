@@ -28,6 +28,7 @@ struct WheelProfile: Codable {
     var pwmAlarm: Double?
     var normalLimit: Int?
     var maintenance: [MaintenanceItem]?
+    var batteryHistory: [ResistancePoint]?
 }
 
 final class ProfileStore {
@@ -118,6 +119,7 @@ final class WheelMonitors {
         }
         if let text {
             lastTempAlert = now
+            BlackBox.shared.trigger("Surchauffe")
             SafetyMonitor.shared.notify(title: "Surchauffe", body: text)
             PhoneWatchBridge.shared.sendAlert(text)
             VoiceAnnouncer.shared.speak(text, urgent: true)

@@ -21,13 +21,24 @@ enum Prefs {
     static var watchRemote: Bool { bool("watchRemote", true) }
     /// Notification avec boutons Brider / Débrider à la connexion (visible sur la montre).
     static var limiterNotification: Bool { bool("limiterNotification", true) }
+    /// Notification météo à la connexion de la roue.
+    static var weatherAlerts: Bool { bool("weatherAlerts", true) }
 }
 
 /// Distribue chaque trame de télémétrie aux services de l'appli (appelé sur le thread principal).
 final class TelemetryHub {
     static let shared = TelemetryHub()
 
+    private var sessionStarted = false
+
     func ingest(_ d: WheelData, manager: BLEManager) {
+        if !sessionStarted {
+            sessionStarted = true
+            RideWeather.shared.wheelConnected()
+            Leaderboard.shared.publishMyStats()
+        }
+        BlackBox.shared.ingest(d, manager: manager)
+        BatteryHealth.shared.ingest(d, manager: manager)
         TripRecorder.shared.ingest(d, wheelName: manager.connectedName ?? "Roue")
         SafetyMonitor.shared.ingest(d, manager: manager)
         VoiceAnnouncer.shared.ingest(d, manager: manager)
@@ -42,6 +53,9 @@ final class TelemetryHub {
     }
 
     func wheelDisconnected() {
+        sessionStarted = false
+        BlackBox.shared.wheelDisconnected()
+        BatteryHealth.shared.wheelDisconnected()
         TripRecorder.shared.wheelDisconnected()
         SafetyMonitor.shared.wheelDisconnected()
         LiveActivityController.shared.end()

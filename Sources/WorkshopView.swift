@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WorkshopView: View {
     @ObservedObject private var store = WorkshopStore.shared
+    @ObservedObject private var appointments = AppointmentStore.shared
     @EnvironmentObject var ble: BLEManager
     @State private var showNewVisit = false
     @AppStorage("workshopMode") private var workshopMode = false
@@ -43,6 +44,16 @@ struct WorkshopView: View {
                         Label("Entretien de la roue", systemImage: "calendar.badge.clock")
                     }
                     NavigationLink {
+                        BatteryHealthView()
+                    } label: {
+                        Label("Santé de la batterie", systemImage: "heart.text.square")
+                    }
+                    NavigationLink {
+                        BlackBoxListView()
+                    } label: {
+                        Label("Boîte noire", systemImage: "record.circle")
+                    }
+                    NavigationLink {
                         InvoicesView()
                     } label: {
                         Label("Devis et factures", systemImage: "eurosign.circle")
@@ -50,6 +61,27 @@ struct WorkshopView: View {
                 } footer: {
                     if ble.state != .connected {
                         Text("Connecte la roue du client pour créer une fiche.")
+                    }
+                }
+
+                Section("Clients") {
+                    NavigationLink {
+                        AppointmentInboxView()
+                    } label: {
+                        HStack {
+                            Label("Demandes de rendez-vous", systemImage: "calendar.badge.plus")
+                            Spacer()
+                            if appointments.openCount > 0 {
+                                Text("\(appointments.openCount)").font(.caption.bold())
+                                    .padding(.horizontal, 7).padding(.vertical, 2)
+                                    .background(Theme.accent, in: Capsule()).foregroundStyle(.black)
+                            }
+                        }
+                    }
+                    NavigationLink {
+                        ServiceRemindersView()
+                    } label: {
+                        Label("Relances clients", systemImage: "bell.badge")
                     }
                 }
 
@@ -88,6 +120,7 @@ struct NewVisitView: View {
     @State private var client = ""
     @State private var phone = ""
     @State private var work = ""
+    @State private var nextMonths = 6
     @State private var pdfURL: URL?
 
     var body: some View {
@@ -106,6 +139,16 @@ struct NewVisitView: View {
                 }
                 Section("Travaux réalisés") {
                     TextEditor(text: $work).frame(minHeight: 100)
+                }
+                Section {
+                    Picker("Prochaine révision", selection: $nextMonths) {
+                        Text("Pas de relance").tag(0)
+                        Text("Dans 3 mois").tag(3)
+                        Text("Dans 6 mois").tag(6)
+                        Text("Dans 12 mois").tag(12)
+                    }
+                } footer: {
+                    Text("Tu recevras une notification le jour venu, et le client apparaîtra dans « Relances clients ».")
                 }
                 if BatteryTest.shared.result != nil {
                     Section {
@@ -137,7 +180,8 @@ struct NewVisitView: View {
     }
 
     private func create() {
-        guard let result = WorkshopStore.shared.addVisit(client: client, phone: phone, work: work) else { return }
+        guard let result = WorkshopStore.shared.addVisit(client: client, phone: phone, work: work,
+                                                         nextServiceMonths: nextMonths) else { return }
         let (record, visit) = result
         pdfURL = DiagnosticReport.makePDF(record: record, visit: visit, data: ble.data, cells: ble.cellCount)
     }

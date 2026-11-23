@@ -41,6 +41,9 @@ struct TripsView: View {
                     NavigationLink { GroupRideView() } label: {
                         Label("Sortie de groupe", systemImage: "person.3.fill")
                     }
+                    NavigationLink { LeaderboardView() } label: {
+                        Label("Classement et défis entre amis", systemImage: "trophy.fill")
+                    }
                     NavigationLink { ZonesView() } label: {
                         Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse")
                     }

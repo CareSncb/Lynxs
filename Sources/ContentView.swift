@@ -73,6 +73,7 @@ struct ContentView: View {
                     hero
                     quickActions
                     if ble.isLimited { BelgiumBadge() }
+                    WeatherCard()
                     SpeedGauge(speed: abs(ble.data.speed), pwm: ble.data.pwm,
                                showPWM: ble.data.hasPWM, maxSpeed: ble.maxSpeed)
                         .frame(height: 250)
@@ -331,6 +332,9 @@ struct WheelSettingsView: View {
                 NavigationLink { MaintenanceView() } label: { Label("Entretien", systemImage: "calendar.badge.clock") }
                 NavigationLink { EventLogView() } label: { Label("Journal d'erreurs", systemImage: "exclamationmark.triangle") }
                 NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
+                NavigationLink { BatteryHealthView() } label: { Label("Santé de la batterie", systemImage: "heart.text.square") }
+                NavigationLink { BlackBoxListView() } label: { Label("Boîte noire", systemImage: "record.circle") }
+                NavigationLink { AppointmentRequestView() } label: { Label("Rendez-vous chez \(Business.name)", systemImage: "calendar.badge.plus") }
             }
             if ble.activeBrand == .inmotion {
                 Section {

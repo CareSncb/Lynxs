@@ -23,6 +23,8 @@ struct WheelRecord: Codable, Identifiable {
     var client: String = ""
     var phone: String = ""
     var visits: [WheelVisit] = []
+    /// Prochaine révision conseillée (relance du client).
+    var nextService: Date?
 }
 
 final class WorkshopStore: ObservableObject {
@@ -58,7 +60,7 @@ final class WorkshopStore: ObservableObject {
     }
 
     /// Ajoute une intervention pour la roue actuellement connectée.
-    func addVisit(client: String, phone: String, work: String) -> (WheelRecord, WheelVisit)? {
+    func addVisit(client: String, phone: String, work: String, nextServiceMonths: Int = 0) -> (WheelRecord, WheelVisit)? {
         let ble = BLEManager.shared
         guard ble.state == .connected, let id = ble.currentWheelID else { return nil }
         let d = ble.data
@@ -72,7 +74,11 @@ final class WorkshopStore: ObservableObject {
                                speedLimit: d.speedLimitKnown ? d.speedLimit : nil,
                                batterySag: BatteryTest.shared.result?.sagPerCell, work: work)
         r.visits.append(visit)
+        if nextServiceMonths > 0 {
+            r.nextService = Calendar.current.date(byAdding: .month, value: nextServiceMonths, to: Date())
+        }
         upsert(r)
+        ServiceReminders.schedule(for: r)
         return (r, visit)
     }
 }
@@ -146,6 +152,11 @@ enum DiagnosticReport {
             row("Température contrôleur", String(format: "%.1f °C", data.temperature))
             if let l = visit.speedLimit { row("Limite / tiltback", String(format: "%.0f km/h", l)) }
             if data.speedAlert > 0 { row("Alerte vitesse", String(format: "%.0f km/h", data.speedAlert)) }
+            let wheelID = BLEManager.shared.currentWheelID == record.id ? record.id : nil
+            if let res = BatteryHealth.shared.sessionResistance ?? BatteryHealth.shared.history(for: wheelID).last?.milliohm {
+                let v = BatteryHealth.verdict(milliohm: res, cells: cells)
+                row("Résistance interne estimée", String(format: "%.0f mΩ — %@", res, v.0))
+            }
             if let r = BatteryTest.shared.result {
                 row("Test batterie : tension au repos", String(format: "%.2f V", r.restVoltage))
                 row("Test batterie : tension mini en charge", String(format: "%.2f V", r.minVoltage))
@@ -163,8 +174,23 @@ enum DiagnosticReport {
                 y += 6; line()
             }
 
+            let incidents = BlackBox.shared.records.filter { $0.wheelName == record.name }.prefix(5)
+            if !incidents.isEmpty {
+                text("Incidents enregistrés (boîte noire)", size: 13, bold: true)
+                for i in incidents {
+                    let when = DateFormatter.localizedString(from: i.date, dateStyle: .short, timeStyle: .short)
+                    text("\(when) — \(i.reason) — \(i.summary)", size: 10, color: .darkGray)
+                }
+                y += 6; line()
+            }
+
             text("Travaux réalisés", size: 13, bold: true)
             text(visit.work.isEmpty ? "—" : visit.work, size: 11)
+            if let next = record.nextService {
+                y += 4
+                text("Prochaine révision conseillée : \(DateFormatter.localizedString(from: next, dateStyle: .long, timeStyle: .none))",
+                     size: 11, bold: true, color: UIColor.systemOrange)
+            }
 
             if record.visits.count > 1 {
                 y += 6; line()

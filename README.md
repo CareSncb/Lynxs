@@ -42,6 +42,13 @@ Garde-fous :
 
 iOS 18 minimum, watchOS 10 minimum (watchOS 11 pour la Live Activity sur la montre).
 
+## Autres fonctions
+- **Boîte noire** : la dernière minute de télémétrie est figée en cas de chute, de coupure Bluetooth en roulant, de PWM > 90 %, de surchauffe ou de tension anormale. Graphiques et export CSV.
+- **Santé de la batterie** : chute de tension sous effort et résistance interne estimée, historique par roue, alerte si la batterie se dégrade.
+- **Météo du trajet** (Open-Meteo) : pluie, rafales, risque de verglas sur les 3 prochaines heures, alerte à la connexion.
+- **Classement et défis entre amis** : kilomètres du mois, records, défi collectif (données chiffrées avec le code du club).
+- **Atelier** : prochaine révision et relances clients (WhatsApp / SMS), demandes de rendez-vous envoyées depuis l'appli du client (lien `lynxdash://rdv`), fiche diagnostic enrichie (santé batterie, incidents).
+
 ## Avant de rouler
 Teste le bridage roue posée, puis vérifie la nouvelle limite sur un petit trajet à basse vitesse.
 L'appli n'a pas été testée sur une roue réelle : confirme toujours la limite affichée.
