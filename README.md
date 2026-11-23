@@ -18,7 +18,15 @@ Les protocoles et commandes de réglage proviennent de l'analyse d'EUC World 2.6
 - **Dans l'appli** : maintiens le bouton 2 secondes, puis confirme.
 - **Bouton Action / Siri / Raccourcis** : actions « Brider la roue à 25 km/h » et « Débrider la roue ».
   Pour le bouton Action : Réglages iPhone > Bouton Action > Raccourci > LynxDash.
-- **Apple Watch** : appli LynxDash sur la montre, bouton puis confirmation (version « iPhone + Apple Watch »).
+- **Apple Watch, sans app montre** (fonctionne avec l'IPA iPhone seul, quel que soit l'outil de signature) :
+  - écran **À l'écoute** de la montre : le titre affiche la vitesse et l'état du bridage ;
+    **Lecture/Pause** = brider/débrider (2 appuis en moins de 5 s pour confirmer),
+    **Suivant** = klaxon, **Précédent** = annonce vocale de l'état.
+    Astuce : sur la montre, Réglages > Général > Réveil de l'écran > « Lancer auto. les apps audio ».
+    La télécommande met la musique en pause tant que la roue est connectée (désactivable dans Réglages).
+  - **notification « LynxDash connecté »** avec les boutons Brider à 25 km/h / Débrider ;
+  - **Live Activity** dans la pile intelligente de la montre (vitesse, batterie, PWM, bridage).
+- **Apple Watch, avec app montre** : version « iPhone + Apple Watch » (signature de la montre requise).
 
 Garde-fous :
 - refus au-dessus de 3 km/h ;
@@ -28,11 +36,11 @@ Garde-fous :
 ## Obtenir l'IPA (sans Mac)
 1. Envoie tout le dossier, y compris `.github`, dans un dépôt GitHub (il peut être privé).
 2. Onglet **Actions**, workflow « Build IPA » : il produit deux artefacts :
-   - **LynxDash-ipa** : iPhone seul (le plus simple à sideloader) ;
+   - **LynxDash-ipa** : iPhone seul (le plus simple à sideloader, recommandé : la montre se pilote quand même) ;
    - **LynxDash-Watch-ipa** : iPhone + Apple Watch.
 3. Sideloade l'IPA avec Sideloadly, AltStore ou SideStore. Pour la montre, Sideloadly est le plus fiable. Un compte Apple gratuit consomme 2 identifiants d'app (iPhone + montre).
 
-iOS 17 minimum, watchOS 10 minimum.
+iOS 18 minimum, watchOS 10 minimum (watchOS 11 pour la Live Activity sur la montre).
 
 ## Avant de rouler
 Teste le bridage roue posée, puis vérifie la nouvelle limite sur un petit trajet à basse vitesse.

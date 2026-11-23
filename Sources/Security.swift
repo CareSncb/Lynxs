@@ -149,8 +149,11 @@ final class HornPlayer {
 
     private func prepare() {
         let session = AVAudioSession.sharedInstance()
-        // .playback : ignore le bouton silencieux de l'iPhone
-        try? session.setCategory(.playback, options: [.duckOthers])
+        // .playback : ignore le bouton silencieux de l'iPhone.
+        // Si la télécommande montre tient déjà la session (.playback aussi), on la garde telle quelle.
+        if !WatchRemote.shared.isActive {
+            try? session.setCategory(.playback, options: [.duckOthers])
+        }
         try? session.setActive(true)
         guard !started else { return }
         engine.attach(player)

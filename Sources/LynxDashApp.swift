@@ -6,6 +6,7 @@ struct LynxDashApp: App {
 
     init() {
         PhoneWatchBridge.shared.activate()
+        LimiterNotification.shared.activate()
         SafetyMonitor.shared.requestNotificationPermission()
         TripRecorder.shared.requestPermission()
         _ = TripStore.shared

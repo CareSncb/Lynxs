@@ -13,7 +13,7 @@ struct LynxWidgetBundle: WidgetBundle {
 struct LynxLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LynxActivityAttributes.self) { context in
-            LockScreenView(state: context.state, name: context.attributes.wheelName)
+            AdaptiveActivityView(state: context.state, name: context.attributes.wheelName)
                 .activityBackgroundTint(Color.black.opacity(0.85))
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
@@ -61,6 +61,59 @@ struct LynxLiveActivity: Widget {
                     .font(.caption2.monospacedDigit())
             }
         }
+        // Affichage dans la pile intelligente de l'Apple Watch (watchOS 11+), sans app montre
+        .supplementalActivityFamilies([.small])
+    }
+}
+
+/// Écran verrouillé de l'iPhone (.medium) ou pile intelligente de la montre (.small).
+struct AdaptiveActivityView: View {
+    @Environment(\.activityFamily) private var family
+    let state: LynxActivityAttributes.ContentState
+    let name: String
+
+    var body: some View {
+        switch family {
+        case .small:
+            WatchActivityView(state: state)
+        default:
+            LockScreenView(state: state, name: name)
+        }
+    }
+}
+
+/// Version compacte pour l'Apple Watch.
+struct WatchActivityView: View {
+    let state: LynxActivityAttributes.ContentState
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(state.connected ? "\(state.speed)" : "—")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(pwmColor(state))
+                    .minimumScaleFactor(0.6)
+                Text("km/h").font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 2) {
+                if state.limited || state.pending {
+                    Label(state.pending ? "attente" : "25", systemImage: state.pending ? "hourglass" : "lock.fill")
+                        .foregroundStyle(.orange)
+                } else {
+                    Image(systemName: "lock.open").foregroundStyle(.secondary)
+                }
+                Text("\(state.battery) %")
+                    .foregroundStyle(state.battery < 20 ? .red : (state.battery < 40 ? .orange : .green))
+                if state.hasPWM {
+                    Text("PWM \(state.pwm)").foregroundStyle(pwmColor(state))
+                }
+            }
+            .font(.caption2.monospacedDigit())
+        }
+        .padding(.horizontal, 4)
+        .foregroundStyle(.white)
     }
 }
 

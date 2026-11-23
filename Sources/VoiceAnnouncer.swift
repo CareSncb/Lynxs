@@ -49,8 +49,11 @@ final class VoiceAnnouncer: NSObject, AVSpeechSynthesizerDelegate {
         if urgent && synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         guard !synth.isSpeaking else { return }
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .voicePrompt,
-                                 options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+        // La télécommande montre tient déjà une session .playback : la voix passe par elle.
+        if !WatchRemote.shared.isActive {
+            try? session.setCategory(.playback, mode: .voicePrompt,
+                                     options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+        }
         try? session.setActive(true)
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "fr-FR")
@@ -59,6 +62,8 @@ final class VoiceAnnouncer: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        // Ne pas couper la session si la télécommande montre l'utilise
+        guard !WatchRemote.shared.isActive else { return }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

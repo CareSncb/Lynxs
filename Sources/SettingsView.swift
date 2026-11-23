@@ -17,6 +17,8 @@ struct SettingsView: View {
     @AppStorage("ntfyTopic") private var ntfyTopic = ""
     @AppStorage("liveActivity") private var liveActivity = true
     @AppStorage("watchPWMAlerts") private var watchPWMAlerts = true
+    @AppStorage("watchRemote") private var watchRemote = true
+    @AppStorage("limiterNotification") private var limiterNotification = true
     @AppStorage("tempAlert") private var tempAlert = 65.0
     @State private var maxSpeedDraft: Double = 40
     @State private var askPinMaxSpeed = false
@@ -152,9 +154,16 @@ struct SettingsView: View {
                     Text("La roue doit rester connectée à l'iPhone pendant la charge. L'alerte température prévient aussi quand la température monte vite.")
                 }
 
-                Section("Écran verrouillé et montre") {
-                    Toggle("Live Activity (Dynamic Island)", isOn: $liveActivity)
-                    Toggle("Vibration PWM sur la montre", isOn: $watchPWMAlerts)
+                Section {
+                    Toggle("Live Activity (Dynamic Island + montre)", isOn: $liveActivity)
+                    Toggle("Télécommande « À l'écoute »", isOn: $watchRemote)
+                        .onChange(of: watchRemote) { _, _ in WatchRemote.shared.settingChanged() }
+                    Toggle("Notification Brider / Débrider", isOn: $limiterNotification)
+                    Toggle("Vibration PWM sur la montre (app montre)", isOn: $watchPWMAlerts)
+                } header: {
+                    Text("Écran verrouillé et Apple Watch")
+                } footer: {
+                    Text("Sans app montre : l'écran « À l'écoute » de la Watch affiche la vitesse. Lecture/Pause = brider ou débrider (appuie 2 fois pour confirmer), Suivant = klaxon, Précédent = annonce vocale. La télécommande met ta musique en pause tant que la roue est connectée : désactive-la si tu écoutes de la musique.")
                 }
 
                 Section("Alarmes du téléphone (son + vibration)") {

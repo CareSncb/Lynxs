@@ -17,6 +17,10 @@ enum Prefs {
     static var liveActivity: Bool { bool("liveActivity", true) }
     static var watchPWMAlerts: Bool { bool("watchPWMAlerts", true) }
     static var workshopMode: Bool { bool("workshopMode", false) }
+    /// Télécommande Apple Watch via l'écran « À l'écoute » (sans app montre).
+    static var watchRemote: Bool { bool("watchRemote", true) }
+    /// Notification avec boutons Brider / Débrider à la connexion (visible sur la montre).
+    static var limiterNotification: Bool { bool("limiterNotification", true) }
 }
 
 /// Distribue chaque trame de télémétrie aux services de l'appli (appelé sur le thread principal).
@@ -32,6 +36,9 @@ final class TelemetryHub {
         BatteryTest.shared.ingest(d)
         WheelMonitors.shared.ingest(d, manager: manager)
         WidgetBridge.shared.update(d, manager: manager)
+        WatchRemote.shared.start()
+        WatchRemote.shared.refresh()
+        LimiterNotification.shared.connected(manager: manager)
     }
 
     func wheelDisconnected() {
@@ -40,5 +47,7 @@ final class TelemetryHub {
         LiveActivityController.shared.end()
         PhoneWatchBridge.shared.pushDisconnected()
         WidgetBridge.shared.disconnected()
+        WatchRemote.shared.stop()
+        LimiterNotification.shared.disconnected()
     }
 }
