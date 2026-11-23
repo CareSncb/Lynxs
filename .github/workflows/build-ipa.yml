@@ -56,6 +56,7 @@ jobs:
 
   iphone-watch:
     name: IPA iPhone + Apple Watch
+    needs: iphone   # l'une après l'autre : évite d'attendre deux Mac en même temps
     runs-on: macos-15
     continue-on-error: true
     steps:
