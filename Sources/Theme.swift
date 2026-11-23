@@ -1,12 +1,51 @@
 import SwiftUI
 
-/// Identité visuelle : dégradé « coucher de soleil » et cartes en verre dépoli.
+/// Identité visuelle Gyrocare : coucher de soleil orange, rouge braise et noir carbone.
 enum Theme {
-    static let accent = Color(red: 1.0, green: 0.55, blue: 0.18)
-    static let sunsetTop = Color(red: 0.16, green: 0.10, blue: 0.24)
-    static let sunsetMid = Color(red: 0.55, green: 0.22, blue: 0.30)
-    static let sunsetLow = Color(red: 0.95, green: 0.45, blue: 0.20)
-    static let night = Color(red: 0.04, green: 0.04, blue: 0.08)
+    /// Orange coucher de soleil (couleur principale).
+    static let accent = Color(red: 1.0, green: 0.50, blue: 0.10)
+    /// Rouge de la coque de la gyroroue.
+    static let ember = Color(red: 0.90, green: 0.12, blue: 0.10)
+    /// Or du soleil.
+    static let gold = Color(red: 1.0, green: 0.74, blue: 0.28)
+    static let sunsetTop = Color(red: 0.22, green: 0.08, blue: 0.04)
+    static let sunsetMid = Color(red: 0.62, green: 0.16, blue: 0.06)
+    static let sunsetLow = Color(red: 1.0, green: 0.48, blue: 0.12)
+    static let night = Color(red: 0.035, green: 0.02, blue: 0.02)
+
+    /// Dégradé de marque (titres, boutons, anneaux).
+    static let brandGradient = LinearGradient(colors: [gold, accent, ember],
+                                              startPoint: .topLeading, endPoint: .bottomTrailing)
+}
+
+/// Logo Gyrocare rond avec halo orange.
+struct GyrocareLogo: View {
+    var size: CGFloat = 44
+
+    var body: some View {
+        Image("Logo")
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+            .overlay(Circle().strokeBorder(Theme.brandGradient, lineWidth: max(1.5, size * 0.04)))
+            .shadow(color: Theme.accent.opacity(0.55), radius: size * 0.2)
+    }
+}
+
+/// Photo de la gyroroue au coucher du soleil, avec voile sombre pour lire le texte par-dessus.
+struct WheelPhoto: View {
+    var name = "WheelHero"
+
+    var body: some View {
+        Image(name)
+            .resizable()
+            .scaledToFill()
+            .overlay(
+                LinearGradient(colors: [.clear, .clear, Theme.night.opacity(0.85)],
+                               startPoint: .top, endPoint: .bottom)
+            )
+    }
 }
 
 /// Fond animé discret, commun à tous les écrans.
@@ -15,7 +54,11 @@ struct AppBackground: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Theme.sunsetTop, Theme.night], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Theme.sunsetTop, Theme.night, Theme.night], startPoint: .top, endPoint: .bottom)
+            // Soleil couchant qui dérive lentement
+            RadialGradient(colors: [Theme.gold.opacity(0.35), .clear],
+                           center: phase ? UnitPoint(x: 0.2, y: 0.0) : UnitPoint(x: 0.8, y: 0.02),
+                           startRadius: 2, endRadius: 160)
             RadialGradient(colors: [Theme.sunsetLow.opacity(0.55), .clear],
                            center: phase ? UnitPoint(x: 0.25, y: 0.05) : UnitPoint(x: 0.75, y: 0.0),
                            startRadius: 10, endRadius: 420)

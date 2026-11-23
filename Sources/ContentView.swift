@@ -17,6 +17,7 @@ struct RootView: View {
             SettingsView()
                 .tabItem { Label("Réglages", systemImage: "gearshape") }
         }
+        .tint(Theme.accent)
         .fullScreenCover(isPresented: Binding(get: { safety.fallCountdown != nil }, set: { _ in })) {
             FallAlertView()
         }
@@ -102,7 +103,8 @@ struct ContentView: View {
     // MARK: En-tête
 
     private var header: some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .center, spacing: 12) {
+            GyrocareLogo(size: 48)
             VStack(alignment: .leading, spacing: 4) {
                 Text(ble.connectedName ?? "LynxDash")
                     .font(.title2.bold())
@@ -158,29 +160,66 @@ struct ContentView: View {
     // MARK: Illustration + batterie
 
     private var hero: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                WheelIllustration(battery: ble.data.batteryPercent, connected: connected, lightOn: lightOn)
-                    .frame(height: 230)
-                VStack {
-                    Spacer()
+        VStack(spacing: 10) {
+            ZStack(alignment: .bottom) {
+                WheelPhoto()
+                    .frame(height: 240)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .saturation(connected ? 1 : 0.55)
+                    .overlay(alignment: .topTrailing) {
+                        if lightOn {
+                            Label("Phare", systemImage: "headlight.high.beam.fill")
+                                .font(.caption2.bold())
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(Theme.gold.opacity(0.9), in: Capsule())
+                                .foregroundStyle(.black)
+                                .padding(10)
+                        }
+                    }
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
                         Text(connected ? String(format: "%.0f", ble.data.batteryPercent) : "—")
-                            .font(.system(size: 44, weight: .bold, design: .rounded))
+                            .font(.system(size: 48, weight: .heavy, design: .rounded))
                             .monospacedDigit()
                         Text("%").font(.title3.bold())
+                        Spacer()
+                        Text("GYROCARE")
+                            .font(.caption.weight(.black))
+                            .kerning(2)
+                            .foregroundStyle(Theme.brandGradient)
                     }
                     .foregroundStyle(.white)
-                    .shadow(radius: 6)
+                    .shadow(color: .black.opacity(0.6), radius: 6)
+                    // Jauge de batterie aux couleurs du coucher de soleil
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.15))
+                            Capsule().fill(batteryGradient)
+                                .frame(width: geo.size.width * (connected ? max(0, min(1, ble.data.batteryPercent / 100)) : 0))
+                                .animation(.easeOut(duration: 0.8), value: ble.data.batteryPercent)
+                        }
+                    }
+                    .frame(height: 8)
                 }
+                .padding(14)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Theme.accent.opacity(0.35), lineWidth: 1))
             HStack {
                 infoPill(icon: "bolt.fill", text: connected ? String(format: "%.1f V", ble.data.voltage) : "— V")
                 infoPill(icon: "road.lanes", text: rangeText)
                 infoPill(icon: "thermometer.medium", text: connected ? String(format: "%.0f °C", ble.data.temperature) : "— °C")
             }
         }
-        .glassCard()
+        .glassCard(padding: 10)
+    }
+
+    private var batteryGradient: LinearGradient {
+        let p = ble.data.batteryPercent
+        let colors: [Color] = p < 20 ? [Theme.ember, .red] : (p < 40 ? [Theme.ember, Theme.accent] : [Theme.ember, Theme.accent, Theme.gold])
+        return LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
     }
 
     private var rangeText: String {

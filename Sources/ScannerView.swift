@@ -8,6 +8,27 @@ struct ScannerView: View {
         NavigationStack {
             List {
                 Section {
+                    ZStack(alignment: .bottomLeading) {
+                        WheelPhoto(name: "WheelPortrait")
+                            .frame(height: 200)
+                            .frame(maxWidth: .infinity)
+                            .clipped()
+                        HStack(spacing: 10) {
+                            GyrocareLogo(size: 40)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text("GYROCARE").font(.headline.weight(.black)).kerning(2)
+                                    .foregroundStyle(Theme.brandGradient)
+                                Text("Allume ta roue, on s'occupe du reste")
+                                    .font(.caption).foregroundStyle(.white.opacity(0.85))
+                            }
+                        }
+                        .padding(12)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+                Section {
                     if ble.discovered.isEmpty {
                         HStack(spacing: 10) {
                             ProgressView()
@@ -34,6 +55,7 @@ struct ScannerView: View {
                     Text("Leaperkim/Nosfet, Begode et Kingsong sont reconnues automatiquement. Déconnecte d'abord toute autre appli, comme EUC World.")
                 }
             }
+            .themedList()
             .navigationTitle("Choisir la roue")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
