@@ -58,7 +58,12 @@ final class LiveShare: ObservableObject {
     }
 
     private func publish() {
-        guard active, let loc = TripRecorder.shared.lastLocation else { return }
+        guard active else { return }
+        guard let loc = TripRecorder.shared.lastLocation else {
+            error = "En attente du GPS… (autorise la localisation pour LynxDash)"
+            TripRecorder.shared.ensureLocation()
+            return
+        }
         let ble = BLEManager.shared
         let connected = ble.state == .connected
         let payload: [String: Any] = [
@@ -76,29 +81,62 @@ final class LiveShare: ObservableObject {
         send(payload)
     }
 
-    private func send(_ payload: [String: Any]) {
+    private func send(_ payload: [String: Any], completion: ((String?) -> Void)? = nil) {
         guard !code.isEmpty,
               let url = URL(string: "https://ntfy.sh/\(topic)"),
               let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.httpBody = body
-        req.setValue("12h", forHTTPHeaderField: "Cache")   // historique conservé 12 h maximum
-        URLSession.shared.dataTask(with: req) { [weak self] _, response, err in
+        req.timeoutInterval = 15
+        URLSession.shared.dataTask(with: req) { [weak self] data, response, err in
+            var problem: String?
+            if let err = err as NSError? {
+                problem = LiveShare.describe(err)
+            } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+                let text = data.flatMap { String(data: $0, encoding: .utf8) }?
+                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                problem = "Le serveur ntfy.sh a refusé (code \(http.statusCode)) \(text.prefix(120))"
+            }
             DispatchQueue.main.async {
-                if err != nil || (response as? HTTPURLResponse)?.statusCode ?? 500 >= 400 {
-                    self?.error = "Envoi impossible (réseau)"
+                if let problem {
+                    self?.error = problem
                 } else {
                     self?.error = nil
                     self?.lastSent = Date()
                 }
+                completion?(problem)
             }
         }.resume()
+    }
+
+    private static func describe(_ err: NSError) -> String {
+        switch err.code {
+        case NSURLErrorNotConnectedToInternet:
+            return "Pas d'accès Internet pour LynxDash : vérifie Réglages iPhone > LynxDash > Données cellulaires"
+        case NSURLErrorTimedOut:
+            return "Le serveur ntfy.sh ne répond pas (délai dépassé)"
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
+            return "Impossible de trouver ntfy.sh (DNS / bloqueur de pubs ?)"
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted:
+            return "Connexion sécurisée refusée (VPN ou filtre réseau ?)"
+        default:
+            return "Erreur réseau \(err.code) : \(err.localizedDescription)"
+        }
+    }
+
+    /// Envoie un message de test et renvoie le résultat lisible.
+    func test(completion: @escaping (String) -> Void) {
+        if code.isEmpty { regenerateCode() }
+        send(["test": true, "ts": Date().timeIntervalSince1970]) { problem in
+            completion(problem ?? "✅ Connexion à ntfy.sh OK")
+        }
     }
 }
 
 struct LiveShareView: View {
     @ObservedObject private var share = LiveShare.shared
+    @State private var testResult: String?
 
     var body: some View {
         List {
@@ -120,6 +158,13 @@ struct LiveShareView: View {
                     share.active ? share.stop() : share.start()
                 }
                 .tint(share.active ? .red : .green)
+                Button("Tester la connexion") {
+                    testResult = "Test en cours…"
+                    share.test { testResult = $0 }
+                }
+                if let testResult {
+                    Text(testResult).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
             }
 
             Section {
