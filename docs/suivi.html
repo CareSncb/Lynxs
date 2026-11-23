@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1026">
+<title>Suivi en direct · LynxDash</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root { --accent: #ff8c2e; --glass: rgba(20, 14, 32, 0.72); --line: rgba(255,255,255,0.12); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b0a12; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+  #map { position: fixed; inset: 0; }
+  .panel { position: fixed; left: 12px; right: 12px; z-index: 1000; background: var(--glass);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid var(--line);
+    border-radius: 22px; padding: 14px 16px; }
+  .top { top: calc(12px + env(safe-area-inset-top)); display: flex; align-items: center; gap: 12px; }
+  .bottom { bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: #888; flex: none; }
+  .dot.live { background: #3ddc84; box-shadow: 0 0 0 0 rgba(61,220,132,.7); animation: pulse 1.8s infinite; }
+  .dot.old { background: #f5a623; }
+  .dot.ended { background: #ff5a5a; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 12px rgba(61,220,132,0); } 100% { box-shadow: 0 0 0 0 rgba(61,220,132,0); } }
+  h1 { font-size: 17px; margin: 0; }
+  .sub { font-size: 13px; opacity: .75; margin-top: 2px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .stat { background: rgba(255,255,255,0.06); border-radius: 14px; padding: 10px 8px; text-align: center; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11px; opacity: .7; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 13px; opacity: .8; }
+  button { background: var(--accent); color: #111; border: 0; border-radius: 999px; padding: 8px 14px;
+    font-weight: 600; font-size: 13px; }
+  .me { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 3px solid #fff;
+    box-shadow: 0 0 14px var(--accent); }
+  .msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 30px; z-index: 2000; background: linear-gradient(#2a1a3d, #0b0a12); }
+  .hidden { display: none; }
+  .lock { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="panel top">
+  <div id="dot" class="dot"></div>
+  <div style="flex:1; min-width:0">
+    <h1 id="title">Suivi en direct</h1>
+    <div class="sub" id="status">Connexion…</div>
+  </div>
+</div>
+
+<div class="panel bottom">
+  <div class="stats">
+    <div class="stat"><b id="speed">—</b><span>km/h</span></div>
+    <div class="stat"><b id="battery">—</b><span>batterie</span></div>
+    <div class="stat"><b id="trip">—</b><span>km parcourus</span></div>
+    <div class="stat"><b id="time">—</b><span>dernière pos.</span></div>
+  </div>
+  <div class="row">
+    <span id="wheel"></span>
+    <button id="center">Centrer</button>
+  </div>
+</div>
+
+<div id="nocode" class="msg hidden">
+  <div><h1>Lien incomplet</h1><p class="sub">Demande le lien de suivi complet à la personne qui partage son trajet.</p></div>
+</div>
+
+<script>
+  const code = (location.hash || '').replace('#', '').trim().toLowerCase();
+  if (!/^[a-z0-9]{6,32}$/.test(code)) document.getElementById('nocode').classList.remove('hidden');
+  const topic = 'lynxdash-live-' + code;
+
+  const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([50.85, 4.35], 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap · © CARTO'
+  }).addTo(map);
+  const trail = L.polyline([], { color: '#ff8c2e', weight: 5, opacity: .9 }).addTo(map);
+  const marker = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) });
+  let last = null, follow = true, ended = false;
+
+  map.on('dragstart', () => { follow = false; });
+  document.getElementById('center').onclick = () => { follow = true; if (last) map.setView([last.lat, last.lon], Math.max(map.getZoom(), 15)); };
+
+  function handle(p) {
+    if (!p) return;
+    if (p.ended) { ended = true; render(); return; }
+    if (typeof p.lat !== 'number') return;
+    if (ended) { trail.setLatLngs([]); }   // nouveau trajet après une fin
+    ended = false;
+    if (last && p.ts <= last.ts) return;
+    last = p;
+    trail.addLatLng([p.lat, p.lon]);
+    marker.setLatLng([p.lat, p.lon]);
+    if (!map.hasLayer(marker)) { marker.addTo(map); map.setView([p.lat, p.lon], 16); }
+    else if (follow) map.panTo([p.lat, p.lon]);
+    render();
+  }
+
+  function render() {
+    const $ = id => document.getElementById(id);
+    if (!last) { $('status').textContent = ended ? 'Trajet terminé' : 'En attente de la première position…'; return; }
+    const age = Date.now() / 1000 - last.ts;
+    $('title').textContent = (last.name ? last.name : 'Trajet') + ' en gyroroue';
+    $('speed').textContent = Math.round(last.speed);
+    $('battery').textContent = last.battery >= 0 ? Math.round(last.battery) + '%' : '—';
+    $('trip').textContent = (last.trip || 0).toFixed(1);
+    $('time').textContent = new Date(last.ts * 1000).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+    $('wheel').innerHTML = (last.wheel || '') + (last.limited ? ' · <span class="lock">bridée 25 km/h</span>' : '');
+    const dot = $('dot');
+    if (ended) { dot.className = 'dot ended'; $('status').textContent = 'Trajet terminé'; }
+    else if (age < 30) { dot.className = 'dot live'; $('status').textContent = 'En direct'; }
+    else { dot.className = 'dot old'; $('status').textContent = 'Dernière position il y a ' + Math.round(age / 60) + ' min'; }
+  }
+  setInterval(render, 5000);
+
+  function parse(line) {
+    try { const e = JSON.parse(line); if (e.event === 'message' && e.message) return JSON.parse(e.message); } catch (_) {}
+    return null;
+  }
+
+  // Historique (12 h) puis flux en direct
+  fetch('https://ntfy.sh/' + topic + '/json?poll=1&since=12h')
+    .then(r => r.text())
+    .then(t => {
+      const items = t.split('\n').map(parse).filter(Boolean);
+      // On ne garde que le dernier trajet (après le dernier « ended » s'il y en a un plus ancien)
+      let startIdx = 0;
+      items.forEach((p, i) => { if (p.ended && i < items.length - 1) startIdx = i + 1; });
+      items.slice(startIdx).forEach(handle);
+      if (trail.getLatLngs().length > 1 && follow) map.fitBounds(trail.getBounds(), { padding: [40, 160] });
+    })
+    .catch(() => {})
+    .finally(() => {
+      const es = new EventSource('https://ntfy.sh/' + topic + '/sse');
+      es.onmessage = ev => {
+        try { const e = JSON.parse(ev.data); if (e.message) handle(JSON.parse(e.message)); } catch (_) {}
+      };
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+import CoreLocation
+import SwiftUI
+
+/// Partage du trajet en direct : la position est publiée toutes les 5 s sur un sujet ntfy.sh secret,
+/// et une page web (docs/suivi.html, publiée par GitHub Pages) l'affiche sur une carte.
+final class LiveShare: ObservableObject {
+    static let shared = LiveShare()
+
+    static let pageURL = "https://caresncb.github.io/lynxs/suivi.html"
+
+    @Published private(set) var active = false
+    @Published private(set) var lastSent: Date?
+    @Published private(set) var error: String?
+    @AppStorage("liveShareCode") private(set) var code = ""
+    @AppStorage("liveShareName") var displayName = ""
+    @AppStorage("liveShareAuto") var autoWithTrips = false
+
+    private var timer: Timer?
+
+    var link: URL? { code.isEmpty ? nil : URL(string: "\(LiveShare.pageURL)#\(code)") }
+
+    var shareMessage: String {
+        let who = displayName.isEmpty ? "Je" : displayName
+        return "\(who) roule en gyroroue : suis le trajet en direct ici 👉 \(link?.absoluteString ?? "")"
+    }
+
+    private var topic: String { "lynxdash-live-\(code)" }
+
+    /// Nouveau code secret (l'ancien lien ne fonctionne plus).
+    func regenerateCode() {
+        let chars = Array("abcdefghijkmnpqrstuvwxyz23456789")
+        code = String((0..<12).map { _ in chars.randomElement()! })
+    }
+
+    func start() {
+        if code.isEmpty { regenerateCode() }
+        active = true
+        error = nil
+        TripRecorder.shared.requestPermission()
+        TripRecorder.shared.ensureLocation()
+        publish()
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.publish() }
+    }
+
+    func stop() {
+        guard active else { return }
+        timer?.invalidate()
+        active = false
+        send(["ended": true, "ts": Date().timeIntervalSince1970, "name": displayName])
+    }
+
+    /// Démarrage / arrêt automatique avec l'enregistrement des trajets.
+    func tripStateChanged(recording: Bool) {
+        guard autoWithTrips else { return }
+        if recording && !active { start() }
+        if !recording && active { stop() }
+    }
+
+    private func publish() {
+        guard active, let loc = TripRecorder.shared.lastLocation else { return }
+        let ble = BLEManager.shared
+        let connected = ble.state == .connected
+        let payload: [String: Any] = [
+            "lat": loc.coordinate.latitude,
+            "lon": loc.coordinate.longitude,
+            "acc": loc.horizontalAccuracy,
+            "speed": connected ? abs(ble.data.speed) : max(0, loc.speed * 3.6),
+            "battery": connected ? ble.data.batteryPercent : -1,
+            "trip": TripRecorder.shared.currentDistance,
+            "wheel": ble.connectedName ?? "",
+            "name": displayName,
+            "limited": ble.isLimited,
+            "ts": Date().timeIntervalSince1970
+        ]
+        send(payload)
+    }
+
+    private func send(_ payload: [String: Any]) {
+        guard !code.isEmpty,
+              let url = URL(string: "https://ntfy.sh/\(topic)"),
+              let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.httpBody = body
+        req.setValue("12h", forHTTPHeaderField: "Cache")   // historique conservé 12 h maximum
+        URLSession.shared.dataTask(with: req) { [weak self] _, response, err in
+            DispatchQueue.main.async {
+                if err != nil || (response as? HTTPURLResponse)?.statusCode ?? 500 >= 400 {
+                    self?.error = "Envoi impossible (réseau)"
+                } else {
+                    self?.error = nil
+                    self?.lastSent = Date()
+                }
+            }
+        }.resume()
+    }
+}
+
+struct LiveShareView: View {
+    @ObservedObject private var share = LiveShare.shared
+
+    var body: some View {
+        List {
+            Section {
+                HStack {
+                    Image(systemName: share.active ? "dot.radiowaves.up.forward" : "location.slash")
+                        .font(.title2)
+                        .foregroundStyle(share.active ? .green : .secondary)
+                    VStack(alignment: .leading) {
+                        Text(share.active ? "Partage en cours" : "Partage arrêté").font(.headline)
+                        if let d = share.lastSent, share.active {
+                            Text("Dernière position envoyée à \(d.formatted(date: .omitted, time: .standard))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        if let e = share.error { Text(e).font(.caption).foregroundStyle(.red) }
+                    }
+                }
+                Button(share.active ? "Arrêter le partage" : "Démarrer le partage") {
+                    share.active ? share.stop() : share.start()
+                }
+                .tint(share.active ? .red : .green)
+            }
+
+            Section {
+                TextField("Ton prénom (affiché sur la carte)", text: share.$displayName)
+                if let link = share.link {
+                    ShareLink(item: link, message: Text(share.shareMessage)) {
+                        Label("Envoyer le lien (Messages, WhatsApp…)", systemImage: "square.and.arrow.up")
+                    }
+                    Text(link.absoluteString).font(.caption2).foregroundStyle(.secondary).textSelection(.enabled)
+                } else {
+                    Button("Créer mon lien de suivi") { share.regenerateCode() }
+                }
+                Toggle("Partager automatiquement pendant les trajets", isOn: share.$autoWithTrips)
+            } header: {
+                Text("Lien de suivi")
+            } footer: {
+                Text("Le lien reste le même d'un trajet à l'autre : envoie-le une fois à ta femme et garde-le en favori. Elle voit ta position, ton tracé, ta vitesse et ta batterie, mises à jour toutes les 5 secondes, uniquement quand le partage est actif.")
+            }
+
+            Section {
+                Button("Changer de lien", role: .destructive) { share.regenerateCode() }
+            } footer: {
+                Text("Crée un nouveau lien secret : l'ancien ne montre plus rien. Les positions passent par le service gratuit ntfy.sh et sont effacées au bout de 12 h.")
+            }
+        }
+        .themedList()
+        .navigationTitle("Partage en direct")
+    }
+}

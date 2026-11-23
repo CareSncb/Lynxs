@@ -206,6 +206,7 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         maxPower = 0
         lastSampleTime = .distantPast
         isRecording = true
+        LiveShare.shared.tripStateChanged(recording: true)
         if Prefs.gpsEnabled {
             location.allowsBackgroundLocationUpdates = location.authorizationStatus == .authorizedAlways
                 || location.authorizationStatus == .authorizedWhenInUse
@@ -219,7 +220,8 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         guard let t = trip else { return }
         trip = nil
         isRecording = false
-        if ZoneManager.shared.zones.isEmpty || BLEManager.shared.state != .connected {
+        LiveShare.shared.tripStateChanged(recording: false)
+        if !LiveShare.shared.active && (ZoneManager.shared.zones.isEmpty || BLEManager.shared.state != .connected) {
             location.stopUpdatingLocation()
             locationActive = false
         }
@@ -232,6 +234,7 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
 
     func wheelDisconnected() {
         if trip == nil {
+            if LiveShare.shared.active || GroupRide.shared.active { return }
             location.stopUpdatingLocation()
             locationActive = false
             return

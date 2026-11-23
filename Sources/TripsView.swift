@@ -35,6 +35,9 @@ struct TripsView: View {
                 }
 
                 Section {
+                    NavigationLink { LiveShareView() } label: {
+                        Label("Partage en direct", systemImage: "dot.radiowaves.up.forward")
+                    }
                     NavigationLink { GroupRideView() } label: {
                         Label("Sortie de groupe", systemImage: "person.3.fill")
                     }
