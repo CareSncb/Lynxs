@@ -177,6 +177,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .themedList()
             .navigationTitle("Réglages")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

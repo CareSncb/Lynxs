@@ -51,88 +51,243 @@ struct FallAlertView: View {
 
 struct ContentView: View {
     @EnvironmentObject var ble: BLEManager
+    @ObservedObject private var recorder = TripRecorder.shared
+    @ObservedObject private var safety = SafetyMonitor.shared
     @State private var showScanner = false
     @State private var showHandlebar = false
+    @State private var showWheelSettings = false
+    @State private var lightOn = false
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10),
+                           GridItem(.flexible(), spacing: 10)]
+
+    private var connected: Bool { ble.state == .connected }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
-                    StatusBanner()
-
-                    SpeedGauge(speed: abs(ble.data.speed),
-                               pwm: ble.data.pwm,
-                               showPWM: ble.data.hasPWM,
-                               maxSpeed: ble.maxSpeed)
-                        .frame(height: 280)
-
-                    BatteryBar(percent: ble.data.batteryPercent,
-                               voltage: ble.data.voltage,
-                               charging: ble.data.isCharging)
-
+                VStack(spacing: 16) {
+                    header
+                    hero
+                    quickActions
+                    SpeedGauge(speed: abs(ble.data.speed), pwm: ble.data.pwm,
+                               showPWM: ble.data.hasPWM, maxSpeed: ble.maxSpeed)
+                        .frame(height: 250)
+                        .glassCard()
+                    realtimeGrid
                     LimiterCard()
-
                     ControlsCard()
-
                     AntiTheftCard()
-
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        Tile(title: "PWM", value: ble.data.hasPWM ? String(format: "%.0f %%", ble.data.pwm) : "—",
-                             icon: "gauge.with.dots.needle.67percent",
-                             tint: pwmColor(ble.data.pwm))
-                        Tile(title: "Courant phase", value: String(format: "%.1f A", ble.data.phaseCurrent),
-                             icon: "bolt.fill", tint: .yellow)
-                        Tile(title: "Température", value: String(format: "%.1f °C", ble.data.temperature),
-                             icon: "thermometer.medium",
-                             tint: ble.data.temperature >= 65 ? .red : .orange)
-                        Tile(title: "Limite roue",
-                             value: ble.data.speedLimitKnown ? String(format: "%.0f km/h", ble.data.speedLimit) : "—",
-                             icon: "speedometer", tint: .cyan)
-                        Tile(title: "Trajet", value: String(format: "%.2f km", ble.data.tripDistance),
-                             icon: "point.topleft.down.curvedto.point.bottomright.up", tint: .green)
-                        Tile(title: "Total", value: String(format: "%.0f km", ble.data.totalDistance),
-                             icon: "road.lanes", tint: .green)
-                        Tile(title: "Vitesse max", value: String(format: "%.1f km/h", ble.maxSpeed),
-                             icon: "flag.checkered", tint: .purple)
-                        Tile(title: ble.activeBrand.shortLabel, value: ble.data.model ?? ble.data.firmwareString,
-                             icon: "cpu", tint: .gray)
-                    }
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.bottom, 24)
             }
-            .navigationTitle(ble.connectedName ?? "LynxDash")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button { showHandlebar = true } label: {
-                        Label("Mode guidon", systemImage: "rectangle.expand.vertical")
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if ble.state == .connected || ble.state == .connecting {
-                        Button("Déconnecter", role: .destructive) { ble.disconnect() }
-                    } else {
-                        Menu {
-                            Button("Chercher une roue") { showScanner = true }
-                            if !ble.knownWheels.isEmpty {
-                                Button("Reconnecter mes roues") { ble.connectKnownWheels() }
-                            }
-                        } label: {
-                            Label("Connecter", systemImage: "antenna.radiowaves.left.and.right")
-                        }
-                    }
-                }
-            }
+            .background(AppBackground())
+            .toolbar(.hidden, for: .navigationBar)
             .fullScreenCover(isPresented: $showHandlebar) {
                 HandlebarView().environmentObject(ble)
             }
             .sheet(isPresented: $showScanner) {
                 ScannerView().environmentObject(ble)
             }
+            .sheet(isPresented: $showWheelSettings) {
+                NavigationStack { WheelSettingsView() }.environmentObject(ble)
+            }
         }
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+    }
+
+    // MARK: En-tête
+
+    private var header: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(ble.connectedName ?? "LynxDash")
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Circle().fill(statusColor).frame(width: 8, height: 8)
+                    Text(statusText).font(.caption).foregroundStyle(.white.opacity(0.75))
+                    if let model = ble.data.model {
+                        Text("· \(model)").font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                    }
+                }
+            }
+            Spacer()
+            Menu {
+                if connected || ble.state == .connecting {
+                    Button("Déconnecter", role: .destructive) { ble.disconnect() }
+                }
+                Button("Chercher une roue") { showScanner = true }
+                if !ble.knownWheels.isEmpty {
+                    Button("Reconnecter mes roues") { ble.connectKnownWheels() }
+                }
+            } label: {
+                Image(systemName: connected ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .foregroundStyle(.white)
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    private var statusColor: Color {
+        switch ble.state {
+        case .connected: return .green
+        case .connecting, .scanning: return .orange
+        default: return .red
+        }
+    }
+
+    private var statusText: String {
+        switch ble.state {
+        case .connected: return ble.framesReceived == 0 ? "Connecté, en attente…" : "Connecté"
+        case .connecting: return "Connexion automatique…"
+        case .scanning: return "Recherche…"
+        case .bluetoothOff: return "Bluetooth désactivé"
+        case .unauthorized: return "Bluetooth non autorisé"
+        case .idle: return "Non connecté"
+        }
+    }
+
+    // MARK: Illustration + batterie
+
+    private var hero: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                WheelIllustration(battery: ble.data.batteryPercent, connected: connected, lightOn: lightOn)
+                    .frame(height: 230)
+                VStack {
+                    Spacer()
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        Text(connected ? String(format: "%.0f", ble.data.batteryPercent) : "—")
+                            .font(.system(size: 44, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                        Text("%").font(.title3.bold())
+                    }
+                    .foregroundStyle(.white)
+                    .shadow(radius: 6)
+                }
+            }
+            HStack {
+                infoPill(icon: "bolt.fill", text: connected ? String(format: "%.1f V", ble.data.voltage) : "— V")
+                infoPill(icon: "road.lanes", text: rangeText)
+                infoPill(icon: "thermometer.medium", text: connected ? String(format: "%.0f °C", ble.data.temperature) : "— °C")
+            }
+        }
+        .glassCard()
+    }
+
+    private var rangeText: String {
+        guard connected, let c = TripStore.shared.averageConsumption, c > 0 else { return "Autonomie —" }
+        return String(format: "≈ %.0f km", ble.data.batteryPercent / c)
+    }
+
+    private func infoPill(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .background(Color.white.opacity(0.08), in: Capsule())
+    }
+
+    // MARK: Actions rapides
+
+    private var quickActions: some View {
+        HStack {
+            QuickActionButton(icon: lightOn ? "lightbulb.fill" : "lightbulb", label: "Phare", active: lightOn) {
+                lightOn.toggle()
+                ble.setLight(lightOn ? .on : .off)
+            }
+            Spacer()
+            QuickActionButton(icon: "speaker.wave.3.fill", label: "Klaxon") { safety.horn() }
+            Spacer()
+            QuickActionButton(icon: ble.isLimited ? "lock.fill" : (ble.pendingAction != nil ? "hourglass" : "lock.open"),
+                              label: "Bridage", active: ble.isLimited || ble.pendingAction == .engage) {
+                Task { @MainActor in ble.limiterMessage = await LimiterToggle.run() }
+            }
+            Spacer()
+            QuickActionButton(icon: "rectangle.expand.vertical", label: "Guidon") { showHandlebar = true }
+            Spacer()
+            QuickActionButton(icon: "slider.horizontal.3", label: "Réglages") { showWheelSettings = true }
+        }
+        .disabled(!connected && ble.state != .idle)
+        .padding(.horizontal, 4)
+    }
+
+    // MARK: Données en temps réel
+
+    private var realtimeGrid: some View {
+        let d = ble.data
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Temps réel").font(.headline).foregroundStyle(.white)
+            LazyVGrid(columns: columns, spacing: 10) {
+                MetricTile(icon: "speedometer", title: "Vitesse", value: String(format: "%.1f", abs(d.speed)), tint: .cyan)
+                MetricTile(icon: "flag.checkered", title: "Max", value: String(format: "%.1f", ble.maxSpeed), tint: .purple)
+                MetricTile(icon: "chart.line.uptrend.xyaxis", title: "Moyenne",
+                           value: recorder.averageSpeed > 0 ? String(format: "%.1f", recorder.averageSpeed) : "—", tint: .teal)
+                MetricTile(icon: "gauge.with.dots.needle.67percent", title: "PWM",
+                           value: d.hasPWM ? String(format: "%.0f %%", d.pwm) : "—", tint: pwmColor(d.pwm))
+                MetricTile(icon: "bolt.horizontal.fill", title: d.hasBatteryCurrent ? "Courant" : "Courant ph.",
+                           value: String(format: "%.1f A", d.phaseCurrent), tint: .yellow)
+                MetricTile(icon: "powerplug.fill", title: "Puissance",
+                           value: d.power.map { String(format: "%.0f W", $0) } ?? "—", tint: .orange)
+                MetricTile(icon: "point.topleft.down.curvedto.point.bottomright.up", title: "Trajet",
+                           value: String(format: "%.2f km", max(d.tripDistance, recorder.currentDistance)), tint: .green)
+                MetricTile(icon: "road.lanes", title: "Total", value: String(format: "%.0f km", d.totalDistance), tint: .green)
+                MetricTile(icon: "timer", title: "Temps", value: durationText(recorder.rideSeconds), tint: .mint)
+                MetricTile(icon: "speedometer", title: "Limite",
+                           value: d.speedLimitKnown ? String(format: "%.0f km/h", d.speedLimit) : "—", tint: .orange)
+                MetricTile(icon: "leaf.fill", title: "Énergie",
+                           value: d.hasBatteryCurrent ? String(format: "%.0f Wh", recorder.energyWh) : "—", tint: .green)
+                MetricTile(icon: "arrow.triangle.2.circlepath", title: "Récupérée",
+                           value: d.hasBatteryCurrent ? String(format: "%.0f Wh", recorder.recoveredWh) : "—", tint: .blue)
+            }
+        }
+        .glassCard()
+    }
+}
+
+/// Réglages envoyés à la roue (phare, pédales…) et informations du véhicule.
+struct WheelSettingsView: View {
+    @EnvironmentObject var ble: BLEManager
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        List {
+            Section("Véhicule") {
+                LabeledContent("Nom", value: ble.connectedName ?? "—")
+                LabeledContent("Marque", value: ble.activeBrand.label)
+                LabeledContent("Modèle", value: ble.data.model ?? "—")
+                LabeledContent("Firmware", value: ble.data.firmwareString)
+                LabeledContent("Compteur", value: String(format: "%.0f km", ble.data.totalDistance))
+                LabeledContent("Limite actuelle", value: ble.data.speedLimitKnown ? String(format: "%.0f km/h", ble.data.speedLimit) : "—")
+            }
+            Section {
+                ControlsCard().listRowBackground(Color.clear).listRowInsets(EdgeInsets())
+            }
+            Section {
+                NavigationLink { MaintenanceView() } label: { Label("Entretien", systemImage: "calendar.badge.clock") }
+                NavigationLink { EventLogView() } label: { Label("Journal d'erreurs", systemImage: "exclamationmark.triangle") }
+                NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
+            }
+            if ble.activeBrand == .inmotion {
+                Section {
+                    Text("Sur la P6, seuls la limite de vitesse et la télémétrie sont confirmés. Les autres réglages de l'appli InMotion (phares, son, pédales, verrouillage…) arriveront après une capture Bluetooth de l'appli officielle.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .themedList()
+        .navigationTitle("Réglages de la roue")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("OK") { dismiss() } } }
     }
 }
 
@@ -244,8 +399,7 @@ struct BatteryBar: View {
             }
             .frame(height: 14)
         }
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .glassCard()
     }
 
     private var color: Color {
@@ -275,8 +429,7 @@ struct Tile: View {
                 .minimumScaleFactor(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .glassCard()
     }
 }
 
@@ -321,8 +474,7 @@ struct LimiterCard: View {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .glassCard()
         .alert("Brider la roue à 25 km/h ?", isPresented: $confirmEngage) {
             Button("Brider", role: .destructive) { run(.engage) }
             Button("Annuler", role: .cancel) {}
@@ -432,8 +584,7 @@ struct ControlsCard: View {
         }
         .disabled(ble.state != .connected)
         .opacity(ble.state == .connected ? 1 : 0.5)
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .glassCard()
     }
 }
 
@@ -471,8 +622,7 @@ struct AntiTheftCard: View {
                 Text(m).font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding()
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .glassCard()
         .alert("Armer l'antivol ?", isPresented: $confirm) {
             Button("Armer") { Task { await safety.armAntiTheft() } }
             Button("Annuler", role: .cancel) {}

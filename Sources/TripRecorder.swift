@@ -23,6 +23,10 @@ struct Trip: Codable, Identifiable {
     var maxSpeed: Double = 0
     var maxPWM: Double?
     var maxTemp: Double = 0
+    var rideSeconds: Double?
+    var energyWh: Double?
+    var recoveredWh: Double?
+    var maxPower: Double?
     var batteryStart: Double = 0
     var batteryEnd: Double = 0
     var samples: [TripSample] = []
@@ -57,6 +61,13 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
     @Published private(set) var isRecording = false
     @Published private(set) var currentDistance: Double = 0
     @Published private(set) var lastLocation: CLLocation?
+    // Statistiques en direct du trajet en cours
+    @Published private(set) var rideSeconds: Double = 0
+    @Published private(set) var energyWh: Double = 0
+    @Published private(set) var recoveredWh: Double = 0
+    @Published private(set) var maxPower: Double = 0
+    var averageSpeed: Double { rideSeconds > 30 ? currentDistance / (rideSeconds / 3600) : 0 }
+    var averagePower: Double { rideSeconds > 30 ? energyWh / (rideSeconds / 3600) : 0 }
 
     private let location = CLLocationManager()
     private var trip: Trip?
@@ -134,7 +145,13 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
 
         let now = Date()
         guard now.timeIntervalSince(lastSampleTime) >= 1 else { return }
+        let dt = lastSampleTime == .distantPast ? 1 : min(5, now.timeIntervalSince(lastSampleTime))
         lastSampleTime = now
+        if abs(d.speed) >= 2 { rideSeconds += dt }
+        if let p = d.power {
+            if p >= 0 { energyWh += p * dt / 3600 } else { recoveredWh += -p * dt / 3600 }
+            maxPower = max(maxPower, p)
+        }
 
         let loc = Prefs.gpsEnabled ? lastLocation : nil
         let fresh = loc.map { now.timeIntervalSince($0.timestamp) < 5 } ?? false
@@ -153,6 +170,12 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         t.maxTemp = max(t.maxTemp, d.temperature)
         if d.hasPWM { t.maxPWM = max(t.maxPWM ?? 0, d.pwm) }
         t.batteryEnd = d.batteryPercent
+        t.rideSeconds = rideSeconds
+        if d.hasBatteryCurrent {
+            t.energyWh = energyWh
+            t.recoveredWh = recoveredWh
+            t.maxPower = maxPower
+        }
         if let s0 = startTotal, d.totalDistance > 0, d.totalDistance >= s0 {
             t.distance = d.totalDistance - s0
         } else {
@@ -177,6 +200,11 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         lastGPS = nil
         stoppedSince = nil
         currentDistance = 0
+        rideSeconds = 0
+        energyWh = 0
+        recoveredWh = 0
+        maxPower = 0
+        lastSampleTime = .distantPast
         isRecording = true
         if Prefs.gpsEnabled {
             location.allowsBackgroundLocationUpdates = location.authorizationStatus == .authorizedAlways

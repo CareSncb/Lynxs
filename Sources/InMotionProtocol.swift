@@ -25,6 +25,7 @@ final class InMotionProtocol: WheelProtocol {
     init() {
         state.brand = .inmotion
         state.hasPWM = true
+        state.hasBatteryCurrent = true
     }
 
     func reset() {

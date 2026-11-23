@@ -40,6 +40,9 @@ struct WheelData: Equatable {
     var pwm: Double = 0              // %
     var hasPWM = false
     var hasPitch = false
+    /// Courant batterie disponible (InMotion) : permet de calculer la puissance réelle.
+    var hasBatteryCurrent = false
+    var power: Double? { hasBatteryCurrent ? voltage * phaseCurrent : nil }
     var batteryPercent: Double = 0
     var chargeMode: Int = 0
     var pedalsMode: Int = 0

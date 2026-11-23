@@ -73,6 +73,7 @@ struct WorkshopView: View {
                     }
                 }
             }
+            .themedList()
             .navigationTitle("Atelier")
             .sheet(isPresented: $showNewVisit) {
                 NewVisitView().environmentObject(ble)

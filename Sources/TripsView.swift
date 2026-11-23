@@ -59,6 +59,7 @@ struct TripsView: View {
                     }
                 }
             }
+            .themedList()
             .navigationTitle("Trajets")
         }
     }
@@ -169,6 +170,11 @@ struct TripDetailView: View {
                 row("Température max", String(format: "%.1f °C", trip.maxTemp))
                 row("Batterie", String(format: "%.0f %% → %.0f %%", trip.batteryStart, trip.batteryEnd))
                 if let c = trip.consumption { row("Consommation", String(format: "%.1f %% / km", c)) }
+                if let r = trip.rideSeconds { row("Temps en mouvement", durationText(r)) }
+                if let e = trip.energyWh { row("Énergie consommée", String(format: "%.0f Wh", e)) }
+                if let e = trip.recoveredWh { row("Énergie récupérée", String(format: "%.0f Wh", e)) }
+                if let p = trip.maxPower { row("Puissance max", String(format: "%.0f W", p)) }
+                if let e = trip.energyWh, trip.distance >= 1 { row("Consommation", String(format: "%.1f Wh / km", e / trip.distance)) }
             }
 
             Section("Vitesse et PWM") {
@@ -211,6 +217,7 @@ struct TripDetailView: View {
                 }
             }
         }
+        .themedList()
         .navigationTitle(trip.start.formatted(date: .abbreviated, time: .shortened))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
