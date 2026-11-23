@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1a1026">
 <title>Suivi en direct · LynxDash</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/mqtt@5/dist/mqtt.min.js"></script>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/mqtt.min.js"></script>
 <style>
   :root { --accent: #ff8c2e; --glass: rgba(20, 14, 32, 0.72); --line: rgba(255,255,255,0.12); }
   * { box-sizing: border-box; }
@@ -67,13 +67,30 @@
 
 <div id="nocode" class="msg hidden">
   <div><h1>Lien incomplet</h1><p class="sub">Demande le lien de suiv<script>
+  window.addEventListener('error', e => {
+    const st = document.getElementById('status');
+    if (st) st.textContent = 'Erreur de chargement : ' + (e.message || 'script');
+  });
+  if (typeof L === 'undefined') {
+    document.getElementById('status').textContent = 'La carte n\'a pas pu se charger (réseau filtré ?)';
+    throw new Error('Leaflet absent');
+  }
   const code = (location.hash || '').replace('#', '').trim().toLowerCase();
   if (!/^[a-z0-9]{6,32}$/.test(code)) document.getElementById('nocode').classList.remove('hidden');
 
   const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([50.85, 4.35], 13);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 19, attribution: '© OpenStreetMap · © CARTO'
   }).addTo(map);
+  // Fond de carte de secours si CARTO est bloqué
+  let tileErrors = 0;
+  dark.on('tileerror', () => {
+    if (++tileErrors === 4) {
+      map.removeLayer(dark);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    }
+  });
+  document.getElementById('status').textContent = 'En attente de la première position…';
   const trail = L.polyline([], { color: '#ff8c2e', weight: 5, opacity: .9 }).addTo(map);
   const marker = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) });
   let last = null, follow = true, ended = false, fitted = false;
@@ -133,7 +150,7 @@
 
   channelPromise.then(channel => {
     // Canal 1 : MQTT (HiveMQ) — la dernière position est conservée par le serveur
-    try {
+    if (typeof mqtt !== 'undefined') try {
       const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', { reconnectPeriod: 3000, clean: true });
       client.on('connect', () => client.subscribe('lynxdash/live/' + channel));
       client.on('message', async (_t, msg) => handle(await decrypt(new TextDecoder().decode(msg))));

@@ -1,0 +1,37 @@
+name: Bibliothèques de la page de suivi
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/vendor.yml
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Télécharger Leaflet et MQTT.js
+        run: |
+          mkdir -p docs/vendor/images
+          curl -fsSL https://registry.npmjs.org/leaflet/-/leaflet-1.9.4.tgz -o leaflet.tgz
+          tar -xzf leaflet.tgz
+          cp package/dist/leaflet.js package/dist/leaflet.css docs/vendor/
+          cp package/dist/images/* docs/vendor/images/
+          rm -rf package leaflet.tgz
+          curl -fsSL https://registry.npmjs.org/mqtt/-/mqtt-5.10.1.tgz -o mqtt.tgz
+          tar -xzf mqtt.tgz
+          cp package/dist/mqtt.min.js docs/vendor/
+          rm -rf package mqtt.tgz
+          ls -la docs/vendor
+      - name: Enregistrer
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add docs/vendor
+          git diff --cached --quiet || git commit -m "Page de suivi : bibliothèques hébergées localement"
+          git push
