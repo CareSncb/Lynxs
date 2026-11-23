@@ -118,8 +118,12 @@ final class LiveShare: ObservableObject {
             return "Le serveur ntfy.sh ne répond pas (délai dépassé)"
         case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
             return "Impossible de trouver ntfy.sh (DNS / bloqueur de pubs ?)"
-        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted:
-            return "Connexion sécurisée refusée (VPN ou filtre réseau ?)"
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted,
+             NSURLErrorServerCertificateHasBadDate, NSURLErrorServerCertificateNotYetValid,
+             NSURLErrorServerCertificateHasUnknownRoot, NSURLErrorClientCertificateRejected:
+            let under = err.userInfo[NSUnderlyingErrorKey] as? NSError
+            let tls = (err.userInfo["_kCFStreamErrorCodeKey"] as? Int).map { " TLS \($0)" } ?? ""
+            return "Connexion sécurisée à ntfy.sh refusée (code \(err.code)\(tls), \(under?.code ?? 0)). Le réseau mobile filtre peut-être ce site."
         default:
             return "Erreur réseau \(err.code) : \(err.localizedDescription)"
         }
