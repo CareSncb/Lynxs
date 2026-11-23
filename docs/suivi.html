@@ -39,6 +39,7 @@
     padding: 30px; z-index: 2000; background: linear-gradient(#2a1a3d, #0b0a12); }
   .hidden { display: none; }
   .lock { color: var(--accent); }
+  .dark-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9) saturate(0.6); }
 </style>
 </head>
 <body>
@@ -79,17 +80,10 @@
   if (!/^[a-z0-9]{6,32}$/.test(code)) document.getElementById('nocode').classList.remove('hidden');
 
   const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([50.85, 4.35], 13);
-  const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap · © CARTO'
+  // Fond OpenStreetMap (gratuit, sans clé), assombri en CSS pour le thème sombre
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, className: 'dark-tiles', attribution: '© OpenStreetMap'
   }).addTo(map);
-  // Fond de carte de secours si CARTO est bloqué
-  let tileErrors = 0;
-  dark.on('tileerror', () => {
-    if (++tileErrors === 4) {
-      map.removeLayer(dark);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-    }
-  });
   document.getElementById('status').textContent = 'En attente de la première position…';
   const trail = L.polyline([], { color: '#ff8c2e', weight: 5, opacity: .9 }).addTo(map);
   const marker = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) });
