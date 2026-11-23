@@ -7,6 +7,7 @@
 <title>Suivi en direct · LynxDash</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/mqtt@5/dist/mqtt.min.js"></script>
 <style>
   :root { --accent: #ff8c2e; --glass: rgba(20, 14, 32, 0.72); --line: rgba(255,255,255,0.12); }
   * { box-sizing: border-box; }
@@ -65,13 +66,9 @@
 </div>
 
 <div id="nocode" class="msg hidden">
-  <div><h1>Lien incomplet</h1><p class="sub">Demande le lien de suivi complet à la personne qui partage son trajet.</p></div>
-</div>
-
-<script>
+  <div><h1>Lien incomplet</h1><p class="sub">Demande le lien de suiv<script>
   const code = (location.hash || '').replace('#', '').trim().toLowerCase();
   if (!/^[a-z0-9]{6,32}$/.test(code)) document.getElementById('nocode').classList.remove('hidden');
-  const topic = 'lynxdash-live-' + code;
 
   const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([50.85, 4.35], 13);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -79,23 +76,41 @@
   }).addTo(map);
   const trail = L.polyline([], { color: '#ff8c2e', weight: 5, opacity: .9 }).addTo(map);
   const marker = L.marker([0, 0], { icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [22, 22], iconAnchor: [11, 11] }) });
-  let last = null, follow = true, ended = false;
+  let last = null, follow = true, ended = false, fitted = false;
 
   map.on('dragstart', () => { follow = false; });
   document.getElementById('center').onclick = () => { follow = true; if (last) map.setView([last.lat, last.lon], Math.max(map.getZoom(), 15)); };
 
+  // ---- Déchiffrement (AES-256-GCM, clé dérivée du code du lien) ----
+  const enc = new TextEncoder();
+  const hex = buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  let keyPromise = crypto.subtle.digest('SHA-256', enc.encode('lynxdash-key:' + code))
+    .then(raw => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']));
+  let channelPromise = crypto.subtle.digest('SHA-256', enc.encode('lynxdash-topic:' + code)).then(h => hex(h).slice(0, 32));
+
+  async function decrypt(b64) {
+    try {
+      const raw = Uint8Array.from(atob(b64.trim()), c => c.charCodeAt(0));
+      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12) }, await keyPromise, raw.slice(12));
+      return JSON.parse(new TextDecoder().decode(plain));
+    } catch (_) { return null; }
+  }
+
   function handle(p) {
-    if (!p) return;
+    if (!p || p.test) return;
     if (p.ended) { ended = true; render(); return; }
     if (typeof p.lat !== 'number') return;
-    if (ended) { trail.setLatLngs([]); }   // nouveau trajet après une fin
-    ended = false;
     if (last && p.ts <= last.ts) return;
+    if (ended) { trail.setLatLngs([]); }
+    ended = false;
     last = p;
-    trail.addLatLng([p.lat, p.lon]);
+    // Tracé : l'historique envoyé avec chaque position permet de voir le chemin même en arrivant en cours de route
+    if (Array.isArray(p.trail) && p.trail.length > trail.getLatLngs().length) trail.setLatLngs(p.trail);
+    else trail.addLatLng([p.lat, p.lon]);
     marker.setLatLng([p.lat, p.lon]);
-    if (!map.hasLayer(marker)) { marker.addTo(map); map.setView([p.lat, p.lon], 16); }
-    else if (follow) map.panTo([p.lat, p.lon]);
+    if (!map.hasLayer(marker)) marker.addTo(map);
+    if (!fitted && trail.getLatLngs().length > 1) { map.fitBounds(trail.getBounds(), { padding: [40, 160] }); fitted = true; }
+    else if (follow) map.setView([p.lat, p.lon], Math.max(map.getZoom(), fitted ? map.getZoom() : 16));
     render();
   }
 
@@ -116,27 +131,32 @@
   }
   setInterval(render, 5000);
 
-  function parse(line) {
-    try { const e = JSON.parse(line); if (e.event === 'message' && e.message) return JSON.parse(e.message); } catch (_) {}
-    return null;
-  }
+  channelPromise.then(channel => {
+    // Canal 1 : MQTT (HiveMQ) — la dernière position est conservée par le serveur
+    try {
+      const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', { reconnectPeriod: 3000, clean: true });
+      client.on('connect', () => client.subscribe('lynxdash/live/' + channel));
+      client.on('message', async (_t, msg) => handle(await decrypt(new TextDecoder().decode(msg))));
+    } catch (_) {}
 
-  // Historique (12 h) puis flux en direct
-  fetch('https://ntfy.sh/' + topic + '/json?poll=1&since=12h')
-    .then(r => r.text())
-    .then(t => {
-      const items = t.split('\n').map(parse).filter(Boolean);
-      // On ne garde que le dernier trajet (après le dernier « ended » s'il y en a un plus ancien)
-      let startIdx = 0;
-      items.forEach((p, i) => { if (p.ended && i < items.length - 1) startIdx = i + 1; });
-      items.slice(startIdx).forEach(handle);
-      if (trail.getLatLngs().length > 1 && follow) map.fitBounds(trail.getBounds(), { padding: [40, 160] });
-    })
-    .catch(() => {})
-    .finally(() => {
-      const es = new EventSource('https://ntfy.sh/' + topic + '/sse');
-      es.onmessage = ev => {
-        try { const e = JSON.parse(ev.data); if (e.message) handle(JSON.parse(e.message)); } catch (_) {}
+    // Canal 2 : ntfy.sh — historique de 12 h puis flux en direct
+    const topic = 'lynxdash-live-' + channel;
+    fetch('https://ntfy.sh/' + topic + '/json?poll=1&since=12h')
+      .then(r => r.text())
+      .then(async t => {
+        for (const line of t.split('\n')) {
+          try { const e = JSON.parse(line); if (e.event === 'message') handle(await decrypt(e.message)); } catch (_) {}
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        try {
+          const es = new EventSource('https://ntfy.sh/' + topic + '/sse');
+          es.onmessage = async ev => { try { const e = JSON.parse(ev.data); if (e.message) handle(await decrypt(e.message)); } catch (_) {} };
+        } catch (_) {}
+      });
+  });
+e) handle(JSON.parse(e.message)); } catch (_) {}
       };
     });
 </script>

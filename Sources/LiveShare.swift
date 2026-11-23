@@ -11,6 +11,7 @@ final class LiveShare: ObservableObject {
     @Published private(set) var active = false
     @Published private(set) var lastSent: Date?
     @Published private(set) var error: String?
+    @Published private(set) var channels: String?
     @AppStorage("liveShareCode") private(set) var code = ""
     @AppStorage("liveShareName") var displayName = ""
     @AppStorage("liveShareAuto") var autoWithTrips = false
@@ -24,7 +25,9 @@ final class LiveShare: ObservableObject {
         return "\(who) roule en gyroroue : suis le trajet en direct ici 👉 \(link?.absoluteString ?? "")"
     }
 
-    private var topic: String { "lynxdash-live-\(code)" }
+    /// Canal dérivé du code (le code lui-même n'est jamais envoyé).
+    private var channel: String { LiveCrypto.channel(for: code) }
+    private var trail: [[Double]] = []
 
     /// Nouveau code secret (l'ancien lien ne fonctionne plus).
     func regenerateCode() {
@@ -36,6 +39,7 @@ final class LiveShare: ObservableObject {
         if code.isEmpty { regenerateCode() }
         active = true
         error = nil
+        trail = []
         TripRecorder.shared.requestPermission()
         TripRecorder.shared.ensureLocation()
         publish()
@@ -47,7 +51,7 @@ final class LiveShare: ObservableObject {
         guard active else { return }
         timer?.invalidate()
         active = false
-        send(["ended": true, "ts": Date().timeIntervalSince1970, "name": displayName])
+        send(["ended": true, "trail": trail, "ts": Date().timeIntervalSince1970, "name": displayName])
     }
 
     /// Démarrage / arrêt automatique avec l'enregistrement des trajets.
@@ -66,7 +70,10 @@ final class LiveShare: ObservableObject {
         }
         let ble = BLEManager.shared
         let connected = ble.state == .connected
+        trail.append([(loc.coordinate.latitude * 1e5).rounded() / 1e5, (loc.coordinate.longitude * 1e5).rounded() / 1e5])
+        if trail.count > 150 { trail.removeFirst(trail.count - 150) }
         let payload: [String: Any] = [
+            "trail": trail,
             "lat": loc.coordinate.latitude,
             "lon": loc.coordinate.longitude,
             "acc": loc.horizontalAccuracy,
@@ -81,33 +88,49 @@ final class LiveShare: ObservableObject {
         send(payload)
     }
 
+    /// Envoie le message chiffré sur deux canaux indépendants (MQTT et ntfy) :
+    /// il suffit que l'un des deux passe.
     private func send(_ payload: [String: Any], completion: ((String?) -> Void)? = nil) {
         guard !code.isEmpty,
-              let url = URL(string: "https://ntfy.sh/\(topic)"),
-              let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
-        var req = URLRequest(url: url)
+              let json = try? JSONSerialization.data(withJSONObject: payload),
+              let sealed = LiveCrypto.seal(json, code: code) else { return }
+        let body = Data(sealed.utf8)
+        let group = DispatchGroup()
+        var mqttProblem: String?
+        var ntfyProblem: String?
+
+        group.enter()
+        MQTTPublisher.shared.publish(topic: "lynxdash/live/\(channel)", payload: body, retain: true) { problem in
+            mqttProblem = problem
+            group.leave()
+        }
+
+        group.enter()
+        var req = URLRequest(url: URL(string: "https://ntfy.sh/lynxdash-live-\(channel)")!)
         req.httpMethod = "POST"
         req.httpBody = body
         req.timeoutInterval = 15
-        URLSession.shared.dataTask(with: req) { [weak self] data, response, err in
-            var problem: String?
+        URLSession.shared.dataTask(with: req) { data, response, err in
             if let err = err as NSError? {
-                problem = LiveShare.describe(err)
+                ntfyProblem = LiveShare.describe(err)
             } else if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
-                let text = data.flatMap { String(data: $0, encoding: .utf8) }?
-                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                problem = "Le serveur ntfy.sh a refusé (code \(http.statusCode)) \(text.prefix(120))"
+                ntfyProblem = "ntfy.sh a refusé (code \(http.statusCode))"
             }
-            DispatchQueue.main.async {
-                if let problem {
-                    self?.error = problem
-                } else {
-                    self?.error = nil
-                    self?.lastSent = Date()
-                }
-                completion?(problem)
-            }
+            DispatchQueue.main.async { group.leave() }
         }.resume()
+
+        group.notify(queue: .main) { [weak self] in
+            self?.channels = "MQTT \(mqttProblem == nil ? "✓" : "✗") · ntfy \(ntfyProblem == nil ? "✓" : "✗")"
+            let problem: String? = (mqttProblem != nil && ntfyProblem != nil)
+                ? "Aucun canal ne passe.\nMQTT : \(mqttProblem!)\nntfy : \(ntfyProblem!)" : nil
+            if let problem {
+                self?.error = problem
+            } else {
+                self?.error = nil
+                self?.lastSent = Date()
+            }
+            completion?(problem)
+        }
     }
 
     private static func describe(_ err: NSError) -> String {
@@ -133,7 +156,7 @@ final class LiveShare: ObservableObject {
     func test(completion: @escaping (String) -> Void) {
         if code.isEmpty { regenerateCode() }
         send(["test": true, "ts": Date().timeIntervalSince1970]) { problem in
-            completion(problem ?? "✅ Connexion à ntfy.sh OK")
+            completion(problem ?? "✅ Partage opérationnel (\(self.channels ?? ""))")
         }
     }
 }
@@ -155,6 +178,7 @@ struct LiveShareView: View {
                             Text("Dernière position envoyée à \(d.formatted(date: .omitted, time: .standard))")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
+                        if let c = share.channels { Text(c).font(.caption2).foregroundStyle(.secondary) }
                         if let e = share.error { Text(e).font(.caption).foregroundStyle(.red) }
                     }
                 }
@@ -191,7 +215,7 @@ struct LiveShareView: View {
             Section {
                 Button("Changer de lien", role: .destructive) { share.regenerateCode() }
             } footer: {
-                Text("Crée un nouveau lien secret : l'ancien ne montre plus rien. Les positions passent par le service gratuit ntfy.sh et sont effacées au bout de 12 h.")
+                Text("Crée un nouveau lien secret : l'ancien ne montre plus rien. Les positions sont chiffrées de bout en bout : les serveurs gratuits HiveMQ et ntfy.sh qui les transportent ne peuvent pas les lire, seul le lien permet de les déchiffrer.")
             }
         }
         .themedList()
