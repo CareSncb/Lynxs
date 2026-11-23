@@ -6,7 +6,7 @@ import SwiftUI
 final class LiveShare: ObservableObject {
     static let shared = LiveShare()
 
-    static let pageURL = "https://caresncb.github.io/lynxs/suivi.html"
+    static let pageURL = "https://caresncb.github.io/Lynxs/suivi.html"
 
     @Published private(set) var active = false
     @Published private(set) var lastSent: Date?
