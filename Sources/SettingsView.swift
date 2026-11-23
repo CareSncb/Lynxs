@@ -18,6 +18,9 @@ struct SettingsView: View {
     @AppStorage("liveActivity") private var liveActivity = true
     @AppStorage("watchPWMAlerts") private var watchPWMAlerts = true
     @AppStorage("tempAlert") private var tempAlert = 65.0
+    @State private var maxSpeedDraft: Double = 40
+    @State private var askPinMaxSpeed = false
+    @State private var maxSpeedMessage: String?
     @State private var chargeLevels: Set<Int> = Set(UserDefaults.standard.array(forKey: "chargeAlertLevels") as? [Int] ?? [80, 100])
 
     var body: some View {
@@ -72,18 +75,30 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Stepper(value: limitBinding, in: 0...99, step: 1) {
+                    LabeledContent("Actuelle", value: limitText)
+                    Stepper(value: $maxSpeedDraft, in: 10...Double(ble.speedLimitRange.upperBound), step: 1) {
                         HStack {
-                            Text("Limite normale")
+                            Text("Nouvelle vitesse max")
                             Spacer()
-                            Text(limitText).foregroundStyle(.secondary)
+                            Text(String(format: "%.0f km/h", maxSpeedDraft)).foregroundStyle(.secondary)
                         }
                     }
+                    Button("Appliquer la vitesse max") {
+                        if PinLock.isSet { askPinMaxSpeed = true } else { applyMaxSpeed() }
+                    }
+                    if let m = maxSpeedMessage { Text(m).font(.caption).foregroundStyle(.secondary) }
+                    NavigationLink {
+                        PinSettingsView()
+                    } label: {
+                        LabeledContent("Code PIN de débridage", value: PinLock.isSet ? "Activé" : "Désactivé")
+                    }
                 } header: {
-                    Text("Débridage")
+                    Text("Vitesse maximale et débridage")
                 } footer: {
-                    Text("Valeur restaurée quand tu débrides. Elle est mémorisée automatiquement au premier bridage. 0 = tiltback désactivé (Begode).")
+                    Text("La vitesse max est la limite (tiltback) envoyée à la roue, et celle restaurée quand tu débrides ou désarmes l'antivol. Si la roue est bridée, elle s'appliquera au débridage. Le code PIN protège le débridage, l'antivol et ce réglage.")
                 }
+                .pinProtected($askPinMaxSpeed, title: "Code PIN pour changer la vitesse max") { applyMaxSpeed() }
+                .onAppear { if let v = ble.normalLimit, v >= 10 { maxSpeedDraft = Double(v) } }
 
                 Section {
                     Toggle("Enregistrer les trajets automatiquement", isOn: $autoTrips)
@@ -187,6 +202,12 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func applyMaxSpeed() {
+        let v = Int(maxSpeedDraft)
+        maxSpeedMessage = "Envoi…"
+        Task { @MainActor in maxSpeedMessage = await ble.setMaxSpeed(v) }
     }
 
     private var limitBinding: Binding<Int> {

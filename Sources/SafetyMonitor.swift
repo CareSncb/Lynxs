@@ -19,7 +19,11 @@ final class SafetyMonitor: ObservableObject {
     @Published private(set) var sirenActive = false
     @Published var antiTheftMessage: String?
     private var basePitch: Double?
-    private var previousLimit: Int?
+    /// Limite à restaurer au désarmement (mémorisée, survit à un redémarrage de l'appli).
+    private var previousLimit: Int? {
+        get { UserDefaults.standard.object(forKey: "antiTheftPrevious") as? Int }
+        set { UserDefaults.standard.set(newValue, forKey: "antiTheftPrevious") }
+    }
     private var sirenTimer: Timer?
     private var sirenEnd = Date.distantPast
 
@@ -151,7 +155,13 @@ final class SafetyMonitor: ObservableObject {
             antiTheftMessage = "Connecte d'abord la roue"
             return
         }
-        previousLimit = ble.data.speedLimitKnown ? Int(ble.data.speedLimit.rounded()) : nil
+        // Limite actuelle lue dans la roue, sinon la vitesse max des réglages
+        let current = ble.data.speedLimitKnown ? Int(ble.data.speedLimit.rounded()) : nil
+        if let c = current, c > SafetyMonitor.antiTheftLimit {
+            previousLimit = c
+        } else if previousLimit == nil {
+            previousLimit = ble.normalLimit
+        }
         if let error = await ble.setSpeedLimit(SafetyMonitor.antiTheftLimit) {
             antiTheftMessage = "Bridage antivol impossible (\(error)) — surveillance active quand même"
         } else {
@@ -166,13 +176,13 @@ final class SafetyMonitor: ObservableObject {
         antiTheftArmed = false
         stopSiren()
         let ble = BLEManager.shared
-        if let previous = previousLimit, previous >= 10, ble.state == .connected {
-            if let error = await ble.setSpeedLimit(previous) {
-                antiTheftMessage = "Antivol désarmé, mais la limite n'a pas pu être restaurée (\(error))"
-                return
-            }
+        guard let previous = previousLimit ?? ble.normalLimit, previous > SafetyMonitor.antiTheftLimit else {
+            antiTheftMessage = "Antivol désarmé. Limite d'origine inconnue : règle la vitesse max dans Réglages"
+            return
         }
-        antiTheftMessage = "Antivol désarmé"
+        let result = await ble.applyLimitNowOrLater(previous)
+        previousLimit = nil
+        antiTheftMessage = "Antivol désarmé · \(result)"
     }
 
     private func checkAntiTheft(_ d: WheelData) {
@@ -189,12 +199,13 @@ final class SafetyMonitor: ObservableObject {
     // MARK: - Sirène / klaxon
 
     func horn() {
-        AudioServicesPlayAlertSound(SystemSoundID(1005))
+        HornPlayer.shared.horn()
     }
 
     func startSiren(seconds: TimeInterval) {
         sirenActive = true
         sirenEnd = Date().addingTimeInterval(seconds)
+        HornPlayer.shared.siren(seconds: seconds)
         sirenTimer?.invalidate()
         sirenTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] timer in
             guard let self, Date() < self.sirenEnd else {
@@ -202,12 +213,12 @@ final class SafetyMonitor: ObservableObject {
                 self?.sirenActive = false
                 return
             }
-            AudioServicesPlayAlertSound(SystemSoundID(1304))
             AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         }
     }
 
     func stopSiren() {
+        HornPlayer.shared.stop()
         sirenTimer?.invalidate()
         sirenActive = false
     }

@@ -192,6 +192,11 @@ final class ZoneManager: ObservableObject {
             activeZone = nil
             if engagedByZone {
                 engagedByZone = false
+                if PinLock.isSet {
+                    SafetyMonitor.shared.notify(title: "Sortie de la zone « \(name) »",
+                                                body: "La roue reste bridée : débride avec ton code PIN dans l'appli")
+                    return
+                }
                 Task { @MainActor in _ = await ble.releaseLimiter() }
                 SafetyMonitor.shared.notify(title: "Sortie de la zone « \(name) »",
                                             body: "Débridage au prochain arrêt")

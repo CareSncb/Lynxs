@@ -159,6 +159,7 @@ final class BLEManager: NSObject, ObservableObject {
         pwmAlarm = defaults.object(forKey: Keys.pwmAlarm) as? Double ?? 80
         normalLimit = defaults.object(forKey: Keys.normalLimit) as? Int
         pendingAction = LimiterAction(rawValue: defaults.string(forKey: Keys.pending) ?? "")
+        scheduledLimit = defaults.object(forKey: "scheduledLimit") as? Int
         super.init()
         central = CBCentralManager(delegate: self, queue: .main, options: [
             CBCentralManagerOptionRestoreIdentifierKey: "be.gyrocare.lynxdash.central",
@@ -353,6 +354,8 @@ final class BLEManager: NSObject, ObservableObject {
     // MARK: - Commandes de réglage
 
     var supportsSpecialLight: Bool { proto?.supportsSpecialLight ?? false }
+    var supportsLight: Bool { !(proto?.lightCommands(.on).isEmpty ?? true) }
+    var supportsPedals: Bool { !(proto?.pedalsCommands(.medium).isEmpty ?? true) }
     var specialLightLabel: String { proto?.specialLightLabel ?? "" }
 
     func setLight(_ mode: LightMode) {
@@ -562,8 +565,10 @@ final class BLEManager: NSObject, ObservableObject {
     }
 
     /// Débride. En roulant, le débridage est programmé et s'applique dès l'arrêt.
+    /// `pinVerified` : vrai seulement quand le code PIN vient d'être saisi dans l'appli.
     @MainActor
-    func releaseLimiter() async -> LimiterOutcome {
+    func releaseLimiter(pinVerified: Bool = false) async -> LimiterOutcome {
+        if PinLock.isSet && !pinVerified { return .failed(PinLock.lockedMessage) }
         if pendingAction == .engage && !isLimited {
             // Bridage pas encore appliqué : on l'annule simplement
             pendingAction = nil
@@ -585,10 +590,41 @@ final class BLEManager: NSObject, ObservableObject {
         pendingAction = nil
     }
 
+    /// Limite à appliquer dès le prochain arrêt (restauration après l'antivol, vitesse max…).
+    @Published var scheduledLimit: Int? {
+        didSet { UserDefaults.standard.set(scheduledLimit, forKey: "scheduledLimit") }
+    }
+
+    /// Applique une limite maintenant si possible, sinon au prochain arrêt / à la prochaine connexion.
+    @MainActor
+    func applyLimitNowOrLater(_ kmh: Int) async -> String {
+        if connectionBlockReason == nil && abs(data.speed) < BLEManager.stopSpeed {
+            if let error = await setSpeedLimit(kmh) {
+                scheduledLimit = kmh
+                return "Pas encore appliquée (\(error)) : nouvel essai au prochain arrêt"
+            }
+            scheduledLimit = nil
+            return "Limite réglée à \(kmh) km/h ✓"
+        }
+        scheduledLimit = kmh
+        return "Limite de \(kmh) km/h programmée : appliquée dès que la roue est connectée et à l'arrêt"
+    }
+
+    /// Vitesse maximale choisie dans les réglages (protégée par le PIN côté interface).
+    @MainActor
+    func setMaxSpeed(_ kmh: Int) async -> String {
+        normalLimit = kmh
+        if isLimited || pendingAction == .engage {
+            return "Vitesse max enregistrée (\(kmh) km/h) : elle s'appliquera au débridage"
+        }
+        return await applyLimitNowOrLater(kmh)
+    }
+
     private func rememberNormalLimit() {
         guard data.speedLimitKnown else { return }
         let current = Int(data.speedLimit.rounded())
-        if current != BLEManager.restrictedLimit {
+        // On ne mémorise que des vraies vitesses de route (pas 25, ni le 10 km/h de l'antivol)
+        if current > BLEManager.restrictedLimit || (current == 0 && activeBrand == .begode) {
             // 0 = tiltback désactivé (Begode) : on le mémorise aussi pour le restaurer
             normalLimit = current
         }
@@ -624,6 +660,19 @@ final class BLEManager: NSObject, ObservableObject {
             if stoppedSince == nil { stoppedSince = Date() }
         } else {
             stoppedSince = nil
+        }
+        // Limite programmée (antivol désarmé en roulant, vitesse max…)
+        if pendingAction == nil, let target = scheduledLimit, !limiterBusy,
+           let since = stoppedSince, Date().timeIntervalSince(since) >= BLEManager.stopDelay,
+           Date().timeIntervalSince(lastPendingAttempt) > 5, connectionBlockReason == nil {
+            lastPendingAttempt = Date()
+            Task { @MainActor in
+                if await self.setSpeedLimit(target) == nil {
+                    self.scheduledLimit = nil
+                    self.limiterMessage = "Limite de \(target) km/h appliquée ✓"
+                }
+            }
+            return
         }
         guard let action = pendingAction, !limiterBusy,
               let since = stoppedSince, Date().timeIntervalSince(since) >= BLEManager.stopDelay,

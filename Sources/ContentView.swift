@@ -57,6 +57,7 @@ struct ContentView: View {
     @State private var showHandlebar = false
     @State private var showWheelSettings = false
     @State private var lightOn = false
+    @State private var askPinForRelease = false
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10),
                            GridItem(.flexible(), spacing: 10)]
@@ -70,6 +71,7 @@ struct ContentView: View {
                     header
                     hero
                     quickActions
+                    if ble.isLimited { BelgiumBadge() }
                     SpeedGauge(speed: abs(ble.data.speed), pwm: ble.data.pwm,
                                showPWM: ble.data.hasPWM, maxSpeed: ble.maxSpeed)
                         .frame(height: 250)
@@ -202,6 +204,10 @@ struct ContentView: View {
     private var quickActions: some View {
         HStack {
             QuickActionButton(icon: lightOn ? "lightbulb.fill" : "lightbulb", label: "Phare", active: lightOn) {
+                guard ble.supportsLight else {
+                    ble.limiterMessage = "Phare : commande pas encore disponible pour \(ble.activeBrand.shortLabel)"
+                    return
+                }
                 lightOn.toggle()
                 ble.setLight(lightOn ? .on : .off)
             }
@@ -210,7 +216,12 @@ struct ContentView: View {
             Spacer()
             QuickActionButton(icon: ble.isLimited ? "lock.fill" : (ble.pendingAction != nil ? "hourglass" : "lock.open"),
                               label: "Bridage", active: ble.isLimited || ble.pendingAction == .engage) {
-                Task { @MainActor in ble.limiterMessage = await LimiterToggle.run() }
+                let engaged = ble.isLimited || ble.pendingAction == .engage
+                if engaged && PinLock.isSet {
+                    askPinForRelease = true
+                } else {
+                    Task { @MainActor in ble.limiterMessage = await LimiterToggle.run() }
+                }
             }
             Spacer()
             QuickActionButton(icon: "rectangle.expand.vertical", label: "Guidon") { showHandlebar = true }
@@ -219,6 +230,11 @@ struct ContentView: View {
         }
         .disabled(!connected && ble.state != .idle)
         .padding(.horizontal, 4)
+        .pinProtected($askPinForRelease, title: "Code PIN pour débrider") {
+            Task { @MainActor in
+                ble.limiterMessage = await ble.releaseLimiter(pinVerified: true).message(for: .release)
+            }
+        }
     }
 
     // MARK: Données en temps réel
@@ -439,6 +455,7 @@ struct LimiterCard: View {
     @EnvironmentObject var ble: BLEManager
     @State private var confirmEngage = false
     @State private var confirmRelease = false
+    @State private var askPin = false
 
     private var engaged: Bool { ble.isLimited || ble.pendingAction == .engage }
 
@@ -466,15 +483,23 @@ struct LimiterCard: View {
                 HoldButton(title: engaged ? "Maintenir 2 s pour débrider" : "Maintenir 2 s pour brider",
                            tint: engaged ? .green : .orange,
                            disabled: ble.limiterBusy || ble.state != .connected) {
-                    if engaged { confirmRelease = true } else { confirmEngage = true }
+                    if engaged { if PinLock.isSet { askPin = true } else { confirmRelease = true } }
+                    else { confirmEngage = true }
                 }
             }
 
+            if ble.isLimited {
+                Label("Mode EDM : 25 km/h, vitesse maximale des engins de déplacement motorisés autorisés sur la voie publique en Belgique",
+                      systemImage: "checkmark.shield.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+            }
             if let message = ble.limiterMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }
         }
         .glassCard()
+        .pinProtected($askPin, title: "Code PIN pour débrider") { run(.release, pinVerified: true) }
         .alert("Brider la roue à 25 km/h ?", isPresented: $confirmEngage) {
             Button("Brider", role: .destructive) { run(.engage) }
             Button("Annuler", role: .cancel) {}
@@ -490,7 +515,7 @@ struct LimiterCard: View {
     }
 
     private var title: String {
-        if ble.isLimited { return "Bridée à 25 km/h" }
+        if ble.isLimited { return "Bloquée à 25 km/h · voie publique" }
         if ble.pendingAction == .engage { return "Bridage en attente" }
         return "Bridage 25 km/h"
     }
@@ -505,10 +530,10 @@ struct LimiterCard: View {
         return ble.isLimited ? .orange : .green
     }
 
-    private func run(_ action: LimiterAction) {
+    private func run(_ action: LimiterAction, pinVerified: Bool = false) {
         ble.limiterMessage = nil
         Task { @MainActor in
-            let outcome = action == .engage ? await ble.engageLimiter() : await ble.releaseLimiter()
+            let outcome = action == .engage ? await ble.engageLimiter() : await ble.releaseLimiter(pinVerified: pinVerified)
             ble.limiterMessage = outcome.message(for: action)
             UINotificationFeedbackGenerator().notificationOccurred(outcome.isFailure ? .error : .success)
         }
@@ -575,12 +600,18 @@ struct ControlsCard: View {
             }
             .pickerStyle(.segmented)
             .onChange(of: light) { _, mode in ble.setLight(mode) }
+            .disabled(!ble.supportsLight)
 
             Picker("Pédales", selection: $pedals) {
                 ForEach(PedalsMode.allCases) { Text("Pédales \($0.label.lowercased())").tag($0) }
             }
             .pickerStyle(.segmented)
             .onChange(of: pedals) { _, mode in ble.setPedals(mode) }
+            .disabled(!ble.supportsPedals)
+            if !ble.supportsLight && ble.state == .connected {
+                Text("Phare et pédales : commandes pas encore disponibles pour \(ble.activeBrand.shortLabel).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .disabled(ble.state != .connected)
         .opacity(ble.state == .connected ? 1 : 0.5)
@@ -594,6 +625,7 @@ struct AntiTheftCard: View {
     @EnvironmentObject var ble: BLEManager
     @ObservedObject private var safety = SafetyMonitor.shared
     @State private var confirm = false
+    @State private var askPinDisarm = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -611,7 +643,7 @@ struct AntiTheftCard: View {
                 .font(.caption).foregroundStyle(.secondary)
             Button(safety.antiTheftArmed ? "Désarmer" : "Armer l'antivol") {
                 if safety.antiTheftArmed {
-                    Task { await safety.disarmAntiTheft() }
+                    if PinLock.isSet { askPinDisarm = true } else { Task { await safety.disarmAntiTheft() } }
                 } else {
                     confirm = true
                 }
@@ -623,11 +655,35 @@ struct AntiTheftCard: View {
             }
         }
         .glassCard()
+        .pinProtected($askPinDisarm, title: "Code PIN pour désarmer l'antivol") {
+            Task { await safety.disarmAntiTheft() }
+        }
         .alert("Armer l'antivol ?", isPresented: $confirm) {
             Button("Armer") { Task { await safety.armAntiTheft() } }
             Button("Annuler", role: .cancel) {}
         } message: {
             Text("La roue sera bridée à \(SafetyMonitor.antiTheftLimit) km/h jusqu'au désarmement.")
         }
+    }
+}
+
+/// Bandeau affiché quand la roue est bloquée à 25 km/h.
+struct BelgiumBadge: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("🇧🇪").font(.largeTitle)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Bloquée à 25 km/h").font(.headline).foregroundStyle(.white)
+                Text("Mode autorisé sur la voie publique en Belgique (engin de déplacement motorisé)")
+                    .font(.caption).foregroundStyle(.white.opacity(0.8))
+            }
+            Spacer()
+            Image(systemName: "checkmark.shield.fill").font(.title2).foregroundStyle(.green)
+        }
+        .padding(14)
+        .background(LinearGradient(colors: [Color.green.opacity(0.35), Color.green.opacity(0.12)],
+                                   startPoint: .leading, endPoint: .trailing),
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.green.opacity(0.5)))
     }
 }
