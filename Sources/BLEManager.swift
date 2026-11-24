@@ -363,6 +363,18 @@ final class BLEManager: NSObject, ObservableObject {
         send(p.lightCommands(mode))
     }
 
+    var supportsWheelHorn: Bool { !(proto?.hornCommands().isEmpty ?? true) }
+
+    /// Fait biper la roue. Renvoie false si la marque ne le permet pas.
+    @discardableResult
+    func wheelHorn() -> Bool {
+        guard state == .connected, let p = proto else { return false }
+        let cmds = p.hornCommands()
+        guard !cmds.isEmpty else { return false }
+        send(cmds)
+        return true
+    }
+
     func setPedals(_ mode: PedalsMode) {
         guard state == .connected, let p = proto else { return }
         send(p.pedalsCommands(mode))

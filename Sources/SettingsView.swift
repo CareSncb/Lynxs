@@ -25,6 +25,7 @@ struct SettingsView: View {
     @AppStorage("alarmBeeps") private var alarmBeeps = true
     @AppStorage("currentAlarm") private var currentAlarm = 0.0
     @AppStorage("autoLight") private var autoLight = false
+    @AppStorage("hornMode") private var hornMode = "both"
     @AppStorage("engineSound") private var engineSound = false
     @AppStorage("engineStyle") private var engineStyle = EngineSound.Style.electric.rawValue
     @AppStorage("engineVolume") private var engineVolume = 0.6
@@ -147,6 +148,11 @@ struct SettingsView: View {
 
                 Section {
                     Toggle("Phare automatique (coucher du soleil)", isOn: $autoLight)
+                    Picker("Klaxon", selection: $hornMode) {
+                        Text("Roue + téléphone").tag("both")
+                        Text("Roue seulement").tag("wheel")
+                        Text("Téléphone seulement").tag("phone")
+                    }
                     Toggle("Son moteur virtuel", isOn: $engineSound)
                     if engineSound {
                         Picker("Style", selection: $engineStyle) {

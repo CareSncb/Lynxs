@@ -192,6 +192,10 @@ final class HornPlayer {
     }
 
     func horn() {
+        // Klaxon de la roue (si la marque le permet) et / ou du téléphone
+        let mode = UserDefaults.standard.string(forKey: "hornMode") ?? "both"
+        let wheelDone = mode != "phone" && BLEManager.shared.wheelHorn()
+        if mode == "wheel" && wheelDone { return }
         prepare()
         guard let b = buffer(siren: false, duration: 0.9) else { return }
         player.stop()

@@ -81,6 +81,9 @@ final class KingsongProtocol: WheelProtocol {
     let supportsSpecialLight = true
     let specialLightLabel = "Automatique"
 
+    /// Bip de la roue : trame vide avec la commande 0x88 (WheelLog).
+    func hornCommands() -> [WheelCommand] { [WheelCommand(KingsongProtocol.frame(0x88))] }
+
     func lightCommands(_ mode: LightMode) -> [WheelCommand] {
         let value: UInt8
         switch mode {

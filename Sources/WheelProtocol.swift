@@ -119,6 +119,8 @@ protocol WheelProtocol: AnyObject {
     var specialLightLabel: String { get }
     /// Mode des pédales.
     func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand]
+    /// Bip / klaxon de la roue elle-même. Vide = non géré.
+    func hornCommands() -> [WheelCommand]
     /// Journal d'événements (Leaperkim uniquement pour l'instant).
     var supportsEventLog: Bool { get }
     func eventLogRequest() -> [WheelCommand]
@@ -130,6 +132,7 @@ protocol WheelProtocol: AnyObject {
 
 extension WheelProtocol {
     var supportsEventLog: Bool { false }
+    func hornCommands() -> [WheelCommand] { [] }
     func eventLogRequest() -> [WheelCommand] { [] }
     func drainEvents() -> [VeteranEvent] { [] }
     var usesPolling: Bool { false }

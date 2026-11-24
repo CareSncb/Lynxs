@@ -50,6 +50,15 @@ final class VeteranDecoder: WheelProtocol {
         return [WheelCommand(Array((on ? "SetLightON" : "SetLightOFF").utf8))]
     }
 
+    /// Bip de la roue (repris de WheelLog, open source) :
+    /// nouveau protocole → 4C 6B 41 70 0E 00 80 80 80 01 + CRC32 (CA 87 E6 6F), ancien → « b ».
+    func hornCommands() -> [WheelCommand] {
+        if last.newProtocol {
+            return [WheelCommand(VeteranDecoder.command(107, payload: [0x00, 0x80, 0x80, 0x80, 0x01]))]
+        }
+        return [WheelCommand(Array("b".utf8))]
+    }
+
     func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand] {
         if last.newProtocol {
             let value: UInt8 = mode == .hard ? 3 : (mode == .medium ? 2 : 1)

@@ -41,6 +41,9 @@ final class BegodeProtocol: WheelProtocol {
     let supportsSpecialLight = true
     let specialLightLabel = "Stroboscope"
 
+    /// Bip de la roue : « b » (WheelLog).
+    func hornCommands() -> [WheelCommand] { [WheelCommand([0x62])] }
+
     func lightCommands(_ mode: LightMode) -> [WheelCommand] {
         switch mode {
         case .off: return [WheelCommand([0x45])]       // 'E'
