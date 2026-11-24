@@ -60,6 +60,7 @@ final class WheelMonitors {
     private var tempHistory: [(Date, Double)] = []
     private var chargeLevelsNotified: Set<Int> = []
     private var lastChargingSeen = Date.distantPast
+    private let chargeDetector = ChargeDetector()
     private var lastTempAlert = Date.distantPast
 
     func ingest(_ d: WheelData, manager: BLEManager) {
@@ -70,15 +71,8 @@ final class WheelMonitors {
     }
 
     private func checkCharge(_ d: WheelData, now: Date) {
-        voltageHistory.append((now, d.voltage))
-        voltageHistory.removeAll { now.timeIntervalSince($0.0) > 180 }
-
-        // En charge : indiqué par la roue, ou tension qui monte à l'arrêt
-        var charging = d.isCharging
-        if !charging, abs(d.speed) < 0.5, let first = voltageHistory.first,
-           now.timeIntervalSince(first.0) > 90, d.voltage - first.1 > 0.3 {
-            charging = true
-        }
+        // En charge : roue immobile ET (indiqué par la roue ou tension qui monte nettement)
+        let charging = chargeDetector.update(d, now: now)
         if charging {
             lastChargingSeen = now
         } else if now.timeIntervalSince(lastChargingSeen) > 300 {

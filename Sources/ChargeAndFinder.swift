@@ -2,6 +2,39 @@ import MapKit
 import SwiftUI
 import UserNotifications
 
+// MARK: - Détection fiable de la charge
+
+/// La roue ne peut pas charger en roulant. On ne déclare « en charge » que si elle est
+/// immobile depuis 30 s, ET que la roue l'indique ou que la tension monte nettement
+/// (≥ 0,5 V en 2 min, mesurée uniquement à l'arrêt : la remontée de tension après
+/// un effort ne compte pas). Le moindre mouvement annule tout de suite.
+final class ChargeDetector {
+    private var stillSince: Date?
+    private var stillVoltages: [(Date, Double)] = []
+    /// Certaines roues (ex. Leaperkim) envoient un « mode de charge » non nul même en roulant :
+    /// dans ce cas on ne s'y fie plus et on se base uniquement sur la tension.
+    private var flagUnreliable = false
+
+    func update(_ d: WheelData, now: Date = Date()) -> Bool {
+        if d.isCharging && abs(d.speed) >= 3 { flagUnreliable = true }
+        if abs(d.speed) >= 0.8 || abs(d.phaseCurrent) > 8 {
+            stillSince = nil
+            stillVoltages.removeAll()
+            return false
+        }
+        if stillSince == nil { stillSince = now }
+        // on ignore les 20 premières secondes d'arrêt (récupération de tension après l'effort)
+        if let s = stillSince, now.timeIntervalSince(s) > 20 {
+            stillVoltages.append((now, d.voltage))
+            stillVoltages.removeAll { now.timeIntervalSince($0.0) > 180 }
+        }
+        guard let s = stillSince, now.timeIntervalSince(s) >= 30 else { return false }
+        if d.isCharging && !flagUnreliable { return true }
+        guard let first = stillVoltages.first, now.timeIntervalSince(first.0) >= 120 else { return false }
+        return d.voltage - first.1 >= 0.5
+    }
+}
+
 // MARK: - Assistant de charge
 
 final class ChargeAssistant: ObservableObject {
@@ -13,18 +46,11 @@ final class ChargeAssistant: ObservableObject {
     @Published private(set) var eta: Date?
 
     private var points: [(Date, Double)] = []
-    private var voltages: [(Date, Double)] = []
-    private var lastSeenCharging = Date.distantPast
+    private let detector = ChargeDetector()
 
     func ingest(_ d: WheelData) {
         let now = Date()
-        voltages.append((now, d.voltage))
-        voltages.removeAll { now.timeIntervalSince($0.0) > 180 }
-        var isCharging = d.isCharging
-        if !isCharging, abs(d.speed) < 0.5, let first = voltages.first,
-           now.timeIntervalSince(first.0) > 90, d.voltage - first.1 > 0.3 { isCharging = true }
-        if isCharging { lastSeenCharging = now }
-        let active = now.timeIntervalSince(lastSeenCharging) < 60
+        let active = detector.update(d, now: now)
         if active != charging { charging = active; if !active { reset() } }
         guard active else { return }
 
