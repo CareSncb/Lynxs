@@ -4,7 +4,7 @@ struct SettingsView: View {
     @EnvironmentObject var ble: BLEManager
     @Environment(\.dismiss) private var dismiss
 
-    private let cellOptions = [16, 20, 24, 30, 32, 36, 40, 42]
+    private let cellOptions = BLEManager.cellOptions
 
     @AppStorage("gpsEnabled") private var gpsEnabled = true
     @AppStorage("autoTrips") private var autoTrips = true
@@ -86,7 +86,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Pack batterie (\(ble.activeBrand == .auto ? "roue non détectée" : ble.activeBrand.shortLabel))")
                 } footer: {
-                    Text("Lynx S : 36S (151,2 V). Sur Begode, ce réglage sert aussi à calculer la tension. Le pourcentage est une estimation.")
+                    Text("Lynx S : 36S (151,2 V). InMotion P6 : 56S (235,2 V). Corrigé automatiquement si la tension mesurée dépasse le pack choisi. Sur Begode, ce réglage sert aussi à calculer la tension. Le pourcentage est une estimation.")
                 }
 
                 Section {

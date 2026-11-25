@@ -116,12 +116,15 @@ final class BLEManager: NSObject, ObservableObject {
         static func cells(_ b: WheelBrand) -> String { "cells_\(b.rawValue)" }
     }
 
+    /// Packs proposés (jusqu'à 60S / 252 V : InMotion P6 = 56S).
+    static let cellOptions = [16, 20, 24, 30, 32, 36, 40, 42, 48, 50, 56, 60]
+
     static func defaultCells(_ brand: WheelBrand) -> Int {
         switch brand {
         case .leaperkim, .auto: return 36   // Lynx S : 151,2 V
         case .begode: return 24             // 100,8 V
         case .kingsong: return 20           // 84 V
-        case .inmotion: return 36
+        case .inmotion: return 56           // P6 : 235,2 V
         }
     }
 
@@ -433,6 +436,16 @@ final class BLEManager: NSObject, ObservableObject {
         return true
     }
 
+    /// Tension mesurée au-dessus du maximum du pack choisi → le pack est forcément plus gros.
+    /// (Pas sur Begode : la tension y est calculée à partir du nombre de cellules.)
+    private func autoCorrectCells(_ d: WheelData) {
+        guard activeBrand != .begode, cellCount > 0,
+              d.voltage > Double(cellCount) * 4.25 + 1,
+              let fit = BLEManager.cellOptions.first(where: { Double($0) * 4.2 >= d.voltage - 0.5 }),
+              fit != cellCount else { return }
+        cellCount = fit
+    }
+
     private func handle(_ d: WheelData) {
         if !isPlausible(d) {
             consecutiveRejects += 1
@@ -440,6 +453,7 @@ final class BLEManager: NSObject, ObservableObject {
             return
         }
         consecutiveRejects = 0
+        autoCorrectCells(d)
         lastAccepted = d
         lastAcceptedDate = Date()
         data = d
