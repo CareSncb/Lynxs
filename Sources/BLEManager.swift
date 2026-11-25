@@ -94,6 +94,37 @@ final class BLEManager: NSObject, ObservableObject {
     }
 
     var currentWheelID: String? { peripheral?.identifier.uuidString }
+
+    /// Roue bridée définitivement à 25 km/h par l'atelier (code atelier obligatoire pour lever).
+    @Published private(set) var isPermanentlyLimited = false
+    private var lastPermanentEnforce = Date.distantPast
+
+    /// Active / lève le bridage définitif de la roue connectée.
+    /// Lever le bridage exige d'avoir saisi le code atelier (vérifié par l'écran appelant).
+    @MainActor
+    func setPermanentLimit(_ on: Bool, atelierCodeVerified: Bool) async -> String {
+        guard let id = currentWheelID else { return "Roue non connectée" }
+        if !on && !atelierCodeVerified { return "Code atelier requis" }
+        ProfileStore.shared.update(id) { $0.permanentLimit = on ? true : nil }
+        isPermanentlyLimited = on
+        if on {
+            let outcome = await engageLimiter()
+            return "Bridage définitif activé — " + outcome.message(for: .engage)
+        }
+        return "Bridage définitif levé. La roue reste bridée tant que tu ne la débrides pas."
+    }
+
+    /// Si la limite a été remontée hors de LynxDash (appli du fabricant…), on rebride au prochain arrêt.
+    private func enforcePermanentLimit(_ d: WheelData) {
+        guard isPermanentlyLimited, d.speedLimitKnown,
+              d.speedLimit > Double(BLEManager.restrictedLimit) + 0.5,
+              pendingAction == nil, !limiterBusy,
+              Date().timeIntervalSince(lastPermanentEnforce) > 30 else { return }
+        lastPermanentEnforce = Date()
+        SafetyMonitor.shared.notify(title: "Bridage définitif",
+                                    body: "La limite a été modifiée hors de LynxDash : la roue est rebridée à 25 km/h au prochain arrêt.")
+        Task { @MainActor in _ = await self.engageLimiter() }
+    }
     var crcFailures: Int { proto?.crcFailures ?? 0 }
     var rejectedFrames: Int { proto?.rejectedFrames ?? 0 }
     var speedLimitRange: ClosedRange<Int> { proto?.speedLimitRange ?? 10...99 }
@@ -193,6 +224,7 @@ final class BLEManager: NSObject, ObservableObject {
         applyingProfile = true
         cellCount = cells
         applyingProfile = false
+        isPermanentlyLimited = currentWheelID.flatMap { ProfileStore.shared.profile($0)?.permanentLimit } ?? false
         p.cellCount = cells
         (p as? InMotionProtocol)?.restoreKnownLimit()
         startPollingIfNeeded()
@@ -454,6 +486,7 @@ final class BLEManager: NSObject, ObservableObject {
         }
         consecutiveRejects = 0
         autoCorrectCells(d)
+        enforcePermanentLimit(d)
         lastAccepted = d
         lastAcceptedDate = Date()
         data = d
@@ -588,7 +621,8 @@ final class BLEManager: NSObject, ObservableObject {
     /// `pinVerified` : vrai seulement quand le code PIN vient d'être saisi dans l'appli.
     @MainActor
     func releaseLimiter(pinVerified: Bool = false) async -> LimiterOutcome {
-        if PinLock.isSet && !pinVerified { return .failed(PinLock.lockedMessage) }
+        if PinLock.required && !pinVerified { return .failed(PinLock.lockedMessage) }
+        if isPermanentlyLimited { return .failed("Roue bridée définitivement à 25 km/h : lève d'abord le bridage définitif (code atelier)") }
         if pendingAction == .engage && !isLimited {
             // Bridage pas encore appliqué : on l'annule simplement
             pendingAction = nil
@@ -633,6 +667,7 @@ final class BLEManager: NSObject, ObservableObject {
     /// Vitesse maximale choisie dans les réglages (protégée par le PIN côté interface).
     @MainActor
     func setMaxSpeed(_ kmh: Int) async -> String {
+        if isPermanentlyLimited { return "Roue bridée définitivement à 25 km/h : vitesse max verrouillée" }
         normalLimit = kmh
         if isLimited || pendingAction == .engage {
             return "Vitesse max enregistrée (\(kmh) km/h) : elle s'appliquera au débridage"

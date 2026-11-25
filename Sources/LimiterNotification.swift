@@ -75,7 +75,7 @@ final class LimiterNotification: NSObject, UNUserNotificationCenterDelegate {
                 } else {
                     text = await ble.engageLimiter().message(for: .engage)
                 }
-            } else if PinLock.isSet {
+            } else if PinLock.required {
                 text = PinLock.lockedMessage
             } else {
                 text = await ble.releaseLimiter().message(for: .release)

@@ -29,6 +29,8 @@ struct WheelProfile: Codable {
     var normalLimit: Int?
     var maintenance: [MaintenanceItem]?
     var batteryHistory: [ResistancePoint]?
+    /// Bridage définitif à 25 km/h posé par l'atelier.
+    var permanentLimit: Bool?
 }
 
 final class ProfileStore {
@@ -188,7 +190,7 @@ final class ZoneManager: ObservableObject {
             activeZone = nil
             if engagedByZone {
                 engagedByZone = false
-                if PinLock.isSet {
+                if PinLock.required {
                     SafetyMonitor.shared.notify(title: "Sortie de la zone « \(name) »",
                                                 body: "La roue reste bridée : débride avec ton code PIN dans l'appli")
                     return

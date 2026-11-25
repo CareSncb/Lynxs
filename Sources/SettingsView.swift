@@ -99,13 +99,13 @@ struct SettingsView: View {
                         }
                     }
                     Button("Appliquer la vitesse max") {
-                        if PinLock.isSet { askPinMaxSpeed = true } else { applyMaxSpeed() }
+                        if PinLock.required { askPinMaxSpeed = true } else { applyMaxSpeed() }
                     }
                     if let m = maxSpeedMessage { Text(m).font(.caption).foregroundStyle(.secondary) }
                     NavigationLink {
                         PinSettingsView()
                     } label: {
-                        LabeledContent("Code PIN de débridage", value: PinLock.isSet ? "Activé" : "Désactivé")
+                        LabeledContent("Codes de débridage", value: PinLock.trustedDevice ? "iPhone de l'atelier" : "Code atelier exigé")
                     }
                 } header: {
                     Text("Vitesse maximale et débridage")
