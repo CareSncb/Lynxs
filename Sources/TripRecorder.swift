@@ -250,6 +250,14 @@ final class TripRecorder: NSObject, ObservableObject, CLLocationManagerDelegate 
         }
     }
 
+    /// Coupe le GPS si plus rien n'en a besoin (partage terminé, roue déconnectée).
+    func releaseLocationIfIdle() {
+        guard trip == nil, !LiveShare.shared.active, !GroupRide.shared.active,
+              BLEManager.shared.state != .connected else { return }
+        location.stopUpdatingLocation()
+        locationActive = false
+    }
+
     func wheelDisconnected() {
         if trip == nil {
             if LiveShare.shared.active || GroupRide.shared.active { return }

@@ -15,8 +15,13 @@ final class LiveShare: ObservableObject {
     @AppStorage("liveShareCode") private(set) var code = ""
     @AppStorage("liveShareName") var displayName = ""
     @AppStorage("liveShareAuto") var autoWithTrips = false
+    /// Démarre tout seul dès que la roue roule, s'arrête quand la roue se déconnecte.
+    @AppStorage("liveShareAutoRide") var autoWhenRiding = true
 
     private var timer: Timer?
+    /// Vrai si le partage a été lancé automatiquement par la roue (et non à la main).
+    private(set) var startedByWheel = false
+    private var pendingStop: DispatchWorkItem?
 
     var link: URL? { code.isEmpty ? nil : URL(string: "\(LiveShare.pageURL)#\(code)") }
 
@@ -48,17 +53,47 @@ final class LiveShare: ObservableObject {
     }
 
     func stop() {
+        pendingStop?.cancel()
+        pendingStop = nil
+        startedByWheel = false
         guard active else { return }
         timer?.invalidate()
         active = false
         send(["ended": true, "trail": trail, "ts": Date().timeIntervalSince1970, "name": displayName])
+        TripRecorder.shared.releaseLocationIfIdle()
     }
 
     /// Démarrage / arrêt automatique avec l'enregistrement des trajets.
     func tripStateChanged(recording: Bool) {
         guard autoWithTrips else { return }
         if recording && !active { start() }
-        if !recording && active { stop() }
+        // En mode « dès que je roule », seule la déconnexion de la roue arrête le partage
+        if !recording && active && !startedByWheel { stop() }
+    }
+
+    /// Appelé à chaque trame : la roue roule → partage lancé automatiquement.
+    func wheelTelemetry(speed: Double) {
+        // Reconnexion rapide après une micro-coupure : on annule l'arrêt prévu
+        if pendingStop != nil, active {
+            pendingStop?.cancel()
+            pendingStop = nil
+        }
+        guard autoWhenRiding, !active, abs(speed) >= 3 else { return }
+        startedByWheel = true
+        start()
+    }
+
+    /// Roue déconnectée : arrêt du partage automatique après 60 s
+    /// (évite de couper le suivi pour une micro-coupure Bluetooth).
+    func wheelDisconnected() {
+        guard active, startedByWheel else { return }
+        pendingStop?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, BLEManager.shared.state != .connected else { return }
+            self.stop()
+        }
+        pendingStop = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60, execute: work)
     }
 
     private func publish() {
@@ -205,11 +240,12 @@ struct LiveShareView: View {
                 } else {
                     Button("Créer mon lien de suivi") { share.regenerateCode() }
                 }
+                Toggle("Partager dès que je roule", isOn: share.$autoWhenRiding)
                 Toggle("Partager automatiquement pendant les trajets", isOn: share.$autoWithTrips)
             } header: {
                 Text("Lien de suivi")
             } footer: {
-                Text("Le lien reste le même d'un trajet à l'autre : envoie-le une fois à ta femme et garde-le en favori. Elle voit ta position, ton tracé, ta vitesse et ta batterie, mises à jour toutes les 5 secondes, uniquement quand le partage est actif.")
+                Text("« Partager dès que je roule » : le partage démarre tout seul quand la roue dépasse 3 km/h, et s'arrête tout seul 1 minute après la déconnexion de la roue. Le lien reste le même d'un trajet à l'autre : envoie-le une fois à ta femme et garde-le en favori. Elle voit ta position, ton tracé, ta vitesse et ta batterie, mises à jour toutes les 5 secondes, uniquement quand le partage est actif.")
             }
 
             Section {

@@ -54,6 +54,7 @@ final class TelemetryHub {
             Leaderboard.shared.publishMyStats()
         }
         BlackBox.shared.ingest(d, manager: manager)
+        LiveShare.shared.wheelTelemetry(speed: d.speed)
         BatteryHealth.shared.ingest(d, manager: manager)
         SafetyAlarms.shared.ingest(d, manager: manager)
         ChargeAssistant.shared.ingest(d)
@@ -76,6 +77,7 @@ final class TelemetryHub {
         sessionStarted = false
         BlackBox.shared.wheelDisconnected()
         BatteryHealth.shared.wheelDisconnected()
+        LiveShare.shared.wheelDisconnected()
         let ble = BLEManager.shared
         WheelFinder.wheelDisconnected(name: ble.connectedName, battery: ble.data.batteryPercent)
         ChargeAssistant.shared.wheelDisconnected(name: ble.connectedName, battery: ble.data.batteryPercent)
