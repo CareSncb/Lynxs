@@ -90,29 +90,6 @@ struct SettingsView: View {
                     Text("Lynx S : 36S (151,2 V). InMotion P6 : 56S (235,2 V). Corrigé automatiquement si la tension mesurée dépasse le pack choisi. Sur Begode, ce réglage sert aussi à calculer la tension. Le pourcentage est une estimation.")
                 }
 
-                if helmet.enabled {
-                Section {
-                    LabeledContent("Actuelle", value: limitText)
-                    Stepper(value: $maxSpeedDraft, in: 10...Double(ble.speedLimitRange.upperBound), step: 1) {
-                        HStack {
-                            Text("Nouvelle vitesse max")
-                            Spacer()
-                            Text(String(format: "%.0f km/h", maxSpeedDraft)).foregroundStyle(.secondary)
-                        }
-                    }
-                    Button("Appliquer la vitesse max") {
-                        if PinLock.required { askPinMaxSpeed = true } else { applyMaxSpeed() }
-                    }
-                    if let m = maxSpeedMessage { Text(m).font(.caption).foregroundStyle(.secondary) }
-                } header: {
-                    Text("Vitesse maximale et débridage")
-                } footer: {
-                    Text("La vitesse max est la limite (tiltback) envoyée à la roue, et celle restaurée quand tu débrides ou désarmes l'antivol. Si la roue est bridée, elle s'appliquera au débridage. Le code PIN protège le débridage, l'antivol et ce réglage.")
-                }
-                .pinProtected($askPinMaxSpeed, title: "Code PIN pour changer la vitesse max") { applyMaxSpeed() }
-                .onAppear { if let v = ble.normalLimit, v >= 10 { maxSpeedDraft = Double(v) } }
-                }
-
                 Section {
                     Toggle("Enregistrer les trajets automatiquement", isOn: $autoTrips)
                     Toggle("Tracé GPS", isOn: $gpsEnabled)

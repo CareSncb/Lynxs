@@ -762,6 +762,43 @@ struct PermanentLimitBadge: View {
     }
 }
 
+/// Vitesse max (limite restaurée quand le casque débride la roue) — menu atelier caché.
+struct MaxSpeedSection: View {
+    @EnvironmentObject var ble: BLEManager
+    @State private var draft: Double = 40
+    @State private var message: String?
+
+    private var current: String {
+        guard let v = ble.normalLimit else { return "Inconnue" }
+        return v == 0 ? "Désactivée" : "\(v) km/h"
+    }
+
+    var body: some View {
+        Section {
+            LabeledContent("Actuelle", value: current)
+            Stepper(value: $draft, in: 10...Double(ble.speedLimitRange.upperBound), step: 1) {
+                HStack {
+                    Text("Nouvelle vitesse max")
+                    Spacer()
+                    Text(String(format: "%.0f km/h", draft)).foregroundStyle(.secondary)
+                }
+            }
+            Button("Appliquer la vitesse max") {
+                let v = Int(draft)
+                message = "Envoi…"
+                Task { @MainActor in message = await ble.setMaxSpeed(v) }
+            }
+            .disabled(ble.state != .connected)
+            if let message { Text(message).font(.caption).foregroundStyle(.secondary) }
+        } header: {
+            Text("Vitesse maximale et débridage")
+        } footer: {
+            Text("Limite envoyée à la roue quand le casque la débride. Sans casque, la roue reste à 25 km/h.")
+        }
+        .onAppear { if let v = ble.normalLimit, v >= 10 { draft = Double(v) } }
+    }
+}
+
 /// Réglages atelier cachés (appui long sur le logo + code atelier).
 struct AtelierHiddenView: View {
     @EnvironmentObject var ble: BLEManager
@@ -782,6 +819,7 @@ struct AtelierHiddenView: View {
                 } header: {
                     Text(Business.name)
                 }
+                MaxSpeedSection()
                 HelmetTriggerSection()
                 Section {
                     Text("Sans le casque, toutes les roues restent bridées à 25 km/h. Ces réglages n'existent que sur cet iPhone.")
