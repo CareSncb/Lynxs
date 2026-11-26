@@ -79,6 +79,7 @@ final class TelemetryHub {
         BlackBox.shared.wheelDisconnected()
         BatteryHealth.shared.wheelDisconnected()
         LiveShare.shared.wheelDisconnected()
+        HelmetTrigger.shared.wheelDisconnected()
         let ble = BLEManager.shared
         WheelFinder.wheelDisconnected(name: ble.connectedName, battery: ble.data.batteryPercent)
         ChargeAssistant.shared.wheelDisconnected(name: ble.connectedName, battery: ble.data.batteryPercent)
