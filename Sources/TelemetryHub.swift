@@ -55,6 +55,7 @@ final class TelemetryHub {
         }
         BlackBox.shared.ingest(d, manager: manager)
         LiveShare.shared.wheelTelemetry(speed: d.speed)
+        HelmetTrigger.shared.poll()
         BatteryHealth.shared.ingest(d, manager: manager)
         SafetyAlarms.shared.ingest(d, manager: manager)
         ChargeAssistant.shared.ingest(d)
