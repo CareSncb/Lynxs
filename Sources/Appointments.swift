@@ -4,7 +4,7 @@ import UserNotifications
 // MARK: - Demandes de rendez-vous (client → atelier)
 
 /// Demande envoyée par un client depuis son appli. Elle voyage dans un lien lynxdash://rdv?d=…
-/// que l'atelier ouvre sur son iPhone pour l'ajouter directement dans l'onglet Atelier.
+/// que l'atelier ouvre sur son iPhone pour l'ajouter directement dans le menu atelier.
 struct AppointmentRequest: Codable, Identifiable, Hashable {
     var id = UUID()
     var created = Date()

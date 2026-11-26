@@ -12,8 +12,6 @@ struct RootView: View {
                 .tabItem { Label("Roue", systemImage: "gauge.with.dots.needle.67percent") }
             TripsView()
                 .tabItem { Label("Trajets", systemImage: "map") }
-            WorkshopView()
-                .tabItem { Label("Atelier", systemImage: "wrench.and.screwdriver") }
             SettingsView()
                 .tabItem { Label("Réglages", systemImage: "gearshape") }
         }
@@ -74,7 +72,6 @@ struct ContentView: View {
                     hero
                     // Mention de bridage définitif : toujours visible (preuve de bonne foi du client)
                     if ble.isPermanentlyLimited { PermanentLimitBadge() }
-                    else if ble.state == .connected { TestModeBadge() }
                     ChargeCard()
                     ProfileBar()
                     quickActions
@@ -107,6 +104,11 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .autoLightChanged)) { note in
             if let on = note.object as? Bool { lightOn = on }
         }
+        // Menu atelier caché : attaché à la racine pour fonctionner roue connectée ou non
+        .pinProtected($askAtelierCode, title: "Code atelier", atelierOnly: true) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { showAtelier = true }
+        }
+        .sheet(isPresented: $showAtelier) { AtelierHiddenView().environmentObject(ble) }
     }
 
     // MARK: En-tête
@@ -282,10 +284,6 @@ struct ContentView: View {
         }
         .disabled(!connected && ble.state != .idle)
         .padding(.horizontal, 4)
-        .pinProtected($askAtelierCode, title: "Code atelier", atelierOnly: true) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { showAtelier = true }
-        }
-        .sheet(isPresented: $showAtelier) { AtelierHiddenView() }
     }
 
     // MARK: Données en temps réel
@@ -757,29 +755,28 @@ struct PermanentLimitBadge: View {
     }
 }
 
-struct TestModeBadge: View {
-    var body: some View {
-        Label("Mode test atelier (casque) : roue débridable — terrain privé uniquement", systemImage: "exclamationmark.triangle.fill")
-            .font(.caption.bold())
-            .foregroundStyle(.black)
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.gold, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-}
-
 /// Réglages atelier cachés (appui long sur le logo + code atelier).
 struct AtelierHiddenView: View {
+    @EnvironmentObject var ble: BLEManager
     @Environment(\.dismiss) private var dismiss
+    @State private var showWorkshop = false
+
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Button {
+                        showWorkshop = true
+                    } label: {
+                        Label("Atelier : fiches, factures, RDV, relances", systemImage: "wrench.and.screwdriver")
+                    }
+                    NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
+                } header: {
+                    Text(Business.name)
+                }
                 HelmetTriggerSection()
                 Section {
-                    NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
-                }
-                Section {
-                    Text("Sans le casque, toutes les roues restent bridées à 25 km/h. Ce réglage n'existe que sur cet iPhone.")
+                    Text("Sans le casque, toutes les roues restent bridées à 25 km/h. Ces réglages n'existent que sur cet iPhone.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -787,6 +784,7 @@ struct AtelierHiddenView: View {
             .navigationTitle("Atelier")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("OK") { dismiss() } } }
+            .sheet(isPresented: $showWorkshop) { WorkshopView().environmentObject(ble) }
         }
     }
 }

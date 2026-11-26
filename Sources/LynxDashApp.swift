@@ -33,7 +33,7 @@ struct LynxDashApp: App {
                             ble.limiterMessage = await LimiterToggle.run()
                         case "rdv":
                             ble.limiterMessage = AppointmentStore.shared.importLink(url)
-                                ? "Demande de rendez-vous ajoutée dans l'onglet Atelier ✓"
+                                ? "Demande de rendez-vous ajoutée dans le menu atelier ✓"
                                 : "Lien de rendez-vous illisible"
 
                         default:
