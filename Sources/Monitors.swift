@@ -192,7 +192,7 @@ final class ZoneManager: ObservableObject {
                 engagedByZone = false
                 if PinLock.required || ble.isPermanentlyLimited {
                     SafetyMonitor.shared.notify(title: "Sortie de la zone « \(name) »",
-                                                body: "La roue reste bridée : débride avec ton code PIN dans l'appli")
+                                                body: "La roue reste bridée à 25 km/h (bridage d'office en atelier)")
                     return
                 }
                 Task { @MainActor in _ = await ble.releaseLimiter() }
