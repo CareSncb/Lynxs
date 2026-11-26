@@ -208,54 +208,6 @@ struct SettingsView: View {
                     Text("La roue doit rester connectée à l'iPhone pendant la charge. L'alerte température prévient aussi quand la température monte vite.")
                 }
 
-                Section {
-                    Toggle("Live Activity (Dynamic Island + montre)", isOn: $liveActivity)
-                    Toggle("Télécommande « À l'écoute »", isOn: $watchRemote)
-                        .onChange(of: watchRemote) { _, _ in WatchRemote.shared.settingChanged() }
-                    Toggle("Notification Brider / Débrider", isOn: $limiterNotification)
-                    Toggle("Alerte météo au départ", isOn: $weatherAlerts)
-                    Toggle("Vibration PWM sur la montre (app montre)", isOn: $watchPWMAlerts)
-                } header: {
-                    Text("Écran verrouillé et Apple Watch")
-                } footer: {
-                    Text("Sans app montre : l'écran « À l'écoute » de la Watch affiche la vitesse. Lecture/Pause = brider ou débrider (appuie 2 fois pour confirmer), Suivant = klaxon, Précédent = annonce vocale. La télécommande met ta musique en pause tant que la roue est connectée : désactive-la si tu écoutes de la musique.")
-                }
-
-                Section("Alarmes du téléphone (son + vibration)") {
-                    Stepper(value: $ble.speedAlarm, in: 0...90, step: 1) {
-                        HStack {
-                            Text("Vitesse")
-                            Spacer()
-                            Text(ble.speedAlarm == 0 ? "Désactivée" : String(format: "%.0f km/h", ble.speedAlarm))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Stepper(value: $ble.pwmAlarm, in: 0...100, step: 5) {
-                        HStack {
-                            Text("PWM")
-                            Spacer()
-                            Text(ble.pwmAlarm == 0 ? "Désactivée" : String(format: "%.0f %%", ble.pwmAlarm))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                Section("Réglages lus dans la roue") {
-                    row("Alerte vitesse", ble.data.speedAlert > 0 ? String(format: "%.0f km/h", ble.data.speedAlert) : "—")
-                    row("Limite / tiltback", ble.data.speedLimitKnown ? String(format: "%.0f km/h", ble.data.speedLimit) : "—")
-                    row("Modèle", ble.data.model ?? "—")
-                    row("Firmware", ble.data.firmwareString)
-                    Button("Remettre la vitesse max à zéro") { ble.resetMaxSpeed() }
-                }
-
-                Section("Diagnostic") {
-                    row("Trames reçues", "\(ble.framesReceived)")
-                    row("Trames rejetées", "\(ble.rejectedFrames)")
-                    row("Valeurs aberrantes filtrées", "\(ble.outliersRejected)")
-                    if ble.activeBrand == .leaperkim {
-                        row("CRC", ble.data.crcChecked ? (ble.data.crcValid ? "OK" : "Échecs : \(ble.crcFailures)") : "Non présent")
-                    }
-                }
             }
             .themedList()
             .navigationTitle("Réglages")
@@ -281,6 +233,79 @@ struct SettingsView: View {
     private var limitText: String {
         guard let v = ble.normalLimit else { return "Inconnue" }
         return v == 0 ? "Désactivé" : "\(v) km/h"
+    }
+
+    private func row(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Réglages avancés (montre, alarmes, lecture de la roue, diagnostic) — menu atelier caché.
+struct AdvancedSettingsView: View {
+    @EnvironmentObject var ble: BLEManager
+    @AppStorage("liveActivity") private var liveActivity = true
+    @AppStorage("watchPWMAlerts") private var watchPWMAlerts = true
+    @AppStorage("watchRemote") private var watchRemote = true
+    @AppStorage("limiterNotification") private var limiterNotification = true
+    @AppStorage("weatherAlerts") private var weatherAlerts = true
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Live Activity (Dynamic Island + montre)", isOn: $liveActivity)
+                Toggle("Télécommande « À l'écoute »", isOn: $watchRemote)
+                    .onChange(of: watchRemote) { _, _ in WatchRemote.shared.settingChanged() }
+                Toggle("Notification Brider / Débrider", isOn: $limiterNotification)
+                Toggle("Alerte météo au départ", isOn: $weatherAlerts)
+                Toggle("Vibration PWM sur la montre (app montre)", isOn: $watchPWMAlerts)
+            } header: {
+                Text("Écran verrouillé et Apple Watch")
+            } footer: {
+                Text("Sans app montre : l'écran « À l'écoute » de la Watch affiche la vitesse. Lecture/Pause = brider ou débrider (appuie 2 fois pour confirmer), Suivant = klaxon, Précédent = annonce vocale. La télécommande met ta musique en pause tant que la roue est connectée : désactive-la si tu écoutes de la musique.")
+            }
+
+            Section("Alarmes du téléphone (son + vibration)") {
+                Stepper(value: $ble.speedAlarm, in: 0...90, step: 1) {
+                    HStack {
+                        Text("Vitesse")
+                        Spacer()
+                        Text(ble.speedAlarm == 0 ? "Désactivée" : String(format: "%.0f km/h", ble.speedAlarm))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Stepper(value: $ble.pwmAlarm, in: 0...100, step: 5) {
+                    HStack {
+                        Text("PWM")
+                        Spacer()
+                        Text(ble.pwmAlarm == 0 ? "Désactivée" : String(format: "%.0f %%", ble.pwmAlarm))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section("Réglages lus dans la roue") {
+                row("Alerte vitesse", ble.data.speedAlert > 0 ? String(format: "%.0f km/h", ble.data.speedAlert) : "—")
+                row("Limite / tiltback", ble.data.speedLimitKnown ? String(format: "%.0f km/h", ble.data.speedLimit) : "—")
+                row("Modèle", ble.data.model ?? "—")
+                row("Firmware", ble.data.firmwareString)
+                Button("Remettre la vitesse max à zéro") { ble.resetMaxSpeed() }
+            }
+
+            Section("Diagnostic") {
+                row("Trames reçues", "\(ble.framesReceived)")
+                row("Trames rejetées", "\(ble.rejectedFrames)")
+                row("Valeurs aberrantes filtrées", "\(ble.outliersRejected)")
+                if ble.activeBrand == .leaperkim {
+                    row("CRC", ble.data.crcChecked ? (ble.data.crcValid ? "OK" : "Échecs : \(ble.crcFailures)") : "Non présent")
+                }
+            }
+        }
+        .themedList()
+        .navigationTitle("Réglages avancés")
     }
 
     private func row(_ label: String, _ value: String) -> some View {
