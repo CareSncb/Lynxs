@@ -104,10 +104,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .autoLightChanged)) { note in
             if let on = note.object as? Bool { lightOn = on }
         }
-        // Menu atelier caché : attaché à la racine pour fonctionner roue connectée ou non
-        .pinProtected($askAtelierCode, title: "Code atelier", atelierOnly: true) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { showAtelier = true }
-        }
+        // Menu atelier caché (le code est demandé depuis l'en-tête, une seule feuille par vue)
         .sheet(isPresented: $showAtelier) { AtelierHiddenView().environmentObject(ble) }
     }
 
@@ -116,8 +113,18 @@ struct ContentView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
             GyrocareLogo(size: 48)
-                // Accès atelier caché : appui long de 3 s sur le logo, puis code atelier
-                .onLongPressGesture(minimumDuration: 3) { askAtelierCode = true }
+                .contentShape(Circle())
+                // Accès atelier caché : appui long de 2 s sur le logo, puis code atelier.
+                // simultaneousGesture : le défilement de l'écran ne l'annule pas.
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 2, maximumDistance: 40).onEnded { _ in
+                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                        askAtelierCode = true
+                    }
+                )
+                .pinProtected($askAtelierCode, title: "Code atelier", atelierOnly: true) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { showAtelier = true }
+                }
             VStack(alignment: .leading, spacing: 4) {
                 Text(ble.connectedName ?? "LynxDash")
                     .font(.title2.bold())
