@@ -68,7 +68,7 @@ final class ProfileManager: ObservableObject {
             ble.setPedals(mode)
             parts.append("pédales \(mode.label.lowercased())")
         }
-        switch p.limit {
+        switch ble.isPermanentlyLimited ? .unchanged : p.limit {
         case .restricted:
             if !ble.isLimited { parts.append(await ble.engageLimiter().message(for: .engage)) }
         case .original:

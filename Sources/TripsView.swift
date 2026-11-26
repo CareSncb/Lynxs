@@ -50,9 +50,6 @@ struct TripsView: View {
                     NavigationLink { WheelFinderView() } label: {
                         Label("Où est ma roue ?", systemImage: "location.magnifyingglass")
                     }
-                    NavigationLink { ZonesView() } label: {
-                        Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse")
-                    }
                 }
 
                 Section("Trajets") {

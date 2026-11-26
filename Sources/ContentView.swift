@@ -72,19 +72,19 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     header
                     hero
+                    // Mention de bridage définitif : toujours visible (preuve de bonne foi du client)
+                    if ble.isPermanentlyLimited { PermanentLimitBadge() }
+                    else if ble.state == .connected { TestModeBadge() }
                     ChargeCard()
                     ProfileBar()
                     quickActions
-                    if ble.state == .connected {
-                        if ble.isPermanentlyLimited { PermanentLimitBadge() } else { TestModeBadge() }
-                    }
                     WeatherCard()
                     SpeedGauge(speed: abs(ble.data.speed), pwm: ble.data.pwm,
                                showPWM: ble.data.hasPWM, maxSpeed: ble.maxSpeed)
                         .frame(height: 250)
                         .glassCard()
                     DashboardGrid()
-                    LimiterCard()
+                    if !ble.isPermanentlyLimited { LimiterCard() }
                     ControlsCard()
                     AntiTheftCard()
                 }
@@ -265,10 +265,15 @@ struct ContentView: View {
             Spacer()
             QuickActionButton(icon: "speaker.wave.3.fill", label: "Klaxon") { safety.horn() }
             Spacer()
-            QuickActionButton(icon: ble.isLimited ? "lock.fill" : (ble.pendingAction != nil ? "hourglass" : "lock.open"),
-                              label: "Bridage", active: ble.isLimited || ble.pendingAction == .engage) {
-                let engaged = ble.isLimited || ble.pendingAction == .engage
-                Task { @MainActor in ble.limiterMessage = await LimiterToggle.run() }
+            if ble.isPermanentlyLimited {
+                QuickActionButton(icon: "lock.shield.fill", label: "25 km/h", active: true) {
+                    ble.limiterMessage = PinLock.lockedMessage
+                }
+            } else {
+                QuickActionButton(icon: ble.isLimited ? "lock.fill" : (ble.pendingAction != nil ? "hourglass" : "lock.open"),
+                                  label: "Bridage", active: ble.isLimited || ble.pendingAction == .engage) {
+                    Task { @MainActor in ble.limiterMessage = await LimiterToggle.run() }
+                }
             }
             Spacer()
             QuickActionButton(icon: "rectangle.expand.vertical", label: "Guidon") { showHandlebar = true }
@@ -337,7 +342,6 @@ struct WheelSettingsView: View {
             Section {
                 NavigationLink { MaintenanceView() } label: { Label("Entretien", systemImage: "calendar.badge.clock") }
                 NavigationLink { EventLogView() } label: { Label("Journal d'erreurs", systemImage: "exclamationmark.triangle") }
-                NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
                 NavigationLink { BatteryHealthView() } label: { Label("Santé de la batterie", systemImage: "heart.text.square") }
                 NavigationLink { BlackBoxListView() } label: { Label("Boîte noire", systemImage: "record.circle") }
                 NavigationLink { AppointmentRequestView() } label: { Label("Rendez-vous chez \(Business.name)", systemImage: "calendar.badge.plus") }
@@ -721,6 +725,15 @@ struct AntiTheftCard: View {
 
 /// Bandeau affiché quand la roue est bloquée à 25 km/h.
 struct PermanentLimitBadge: View {
+    @EnvironmentObject var ble: BLEManager
+
+    private var status: String {
+        guard ble.state == .connected else { return "Roue non connectée" }
+        if ble.isLimited { return "Limite lue sur la roue : 25 km/h ✓" }
+        if ble.pendingAction == .engage { return "Bridage en cours d'application…" }
+        return "Vérification de la limite…"
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Text("🇧🇪").font(.system(size: 40))
@@ -729,6 +742,8 @@ struct PermanentLimitBadge: View {
                     .font(.headline).foregroundStyle(.white)
                 Text("Bridage réalisé en atelier par \(Business.name), conforme à la réglementation belge (engin de déplacement motorisé, voie publique).")
                     .font(.caption).foregroundStyle(.white.opacity(0.85))
+                Text((ble.connectedName.map { "\($0) · " } ?? "") + status)
+                    .font(.caption2.bold()).foregroundStyle(ble.isLimited ? .green : Theme.gold)
             }
             Spacer(minLength: 0)
             Image(systemName: "checkmark.shield.fill").font(.title2).foregroundStyle(.green)
@@ -760,6 +775,9 @@ struct AtelierHiddenView: View {
         NavigationStack {
             List {
                 HelmetTriggerSection()
+                Section {
+                    NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
+                }
                 Section {
                     Text("Sans le casque, toutes les roues restent bridées à 25 km/h. Ce réglage n'existe que sur cet iPhone.")
                         .font(.caption).foregroundStyle(.secondary)
