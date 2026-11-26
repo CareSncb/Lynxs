@@ -31,7 +31,9 @@ final class HelmetTrigger: ObservableObject {
                                                           object: nil, queue: .main) { [weak self] _ in
             self?.poll(force: true)
         }
-        poll(force: true)
+        // Pas d'appel direct ici : poll() consulte HelmetTrigger.shared (via BLEManager),
+        // qui est justement en cours de création → plantage au lancement.
+        DispatchQueue.main.async { [weak self] in self?.poll(force: true) }
     }
 
     /// Noms des sorties audio actuelles (pour vérifier le nom exact du casque).
@@ -55,7 +57,7 @@ final class HelmetTrigger: ObservableObject {
             [.bluetoothA2DP, .bluetoothHFP, .bluetoothLE].contains(port.portType) && matches(port.portName)
         }
         if present != helmetConnected { helmetConnected = present }
-        BLEManager.shared.refreshLockState()
+        BLEManager.shared.refreshLockState(unlock: authorizesUnlock)
         enforce(now: now)
     }
 

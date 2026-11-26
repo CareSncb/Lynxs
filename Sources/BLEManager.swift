@@ -102,8 +102,8 @@ final class BLEManager: NSObject, ObservableObject {
     private var engagedThisConnection = false
 
     /// Recalcule le verrou (appelé quand le casque apparaît / disparaît).
-    func refreshLockState() {
-        let locked = !HelmetTrigger.shared.authorizesUnlock
+    func refreshLockState(unlock: Bool? = nil) {
+        let locked = !(unlock ?? HelmetTrigger.shared.authorizesUnlock)
         if locked != isPermanentlyLimited { isPermanentlyLimited = locked }
     }
 
