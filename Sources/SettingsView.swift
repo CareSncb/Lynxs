@@ -26,6 +26,7 @@ struct SettingsView: View {
     @AppStorage("currentAlarm") private var currentAlarm = 0.0
     @AppStorage("autoLight") private var autoLight = false
     @AppStorage("hornMode") private var hornMode = "both"
+    @ObservedObject private var helmet = HelmetTrigger.shared
     @AppStorage("engineSound") private var engineSound = false
     @AppStorage("engineStyle") private var engineStyle = EngineSound.Style.electric.rawValue
     @AppStorage("engineVolume") private var engineVolume = 0.6
@@ -89,6 +90,7 @@ struct SettingsView: View {
                     Text("Lynx S : 36S (151,2 V). InMotion P6 : 56S (235,2 V). Corrigé automatiquement si la tension mesurée dépasse le pack choisi. Sur Begode, ce réglage sert aussi à calculer la tension. Le pourcentage est une estimation.")
                 }
 
+                if helmet.enabled {
                 Section {
                     LabeledContent("Actuelle", value: limitText)
                     Stepper(value: $maxSpeedDraft, in: 10...Double(ble.speedLimitRange.upperBound), step: 1) {
@@ -102,11 +104,6 @@ struct SettingsView: View {
                         if PinLock.required { askPinMaxSpeed = true } else { applyMaxSpeed() }
                     }
                     if let m = maxSpeedMessage { Text(m).font(.caption).foregroundStyle(.secondary) }
-                    NavigationLink {
-                        PinSettingsView()
-                    } label: {
-                        LabeledContent("Codes de débridage", value: PinLock.trustedDevice ? "iPhone de l'atelier" : "Code atelier exigé")
-                    }
                 } header: {
                     Text("Vitesse maximale et débridage")
                 } footer: {
@@ -114,6 +111,7 @@ struct SettingsView: View {
                 }
                 .pinProtected($askPinMaxSpeed, title: "Code PIN pour changer la vitesse max") { applyMaxSpeed() }
                 .onAppear { if let v = ble.normalLimit, v >= 10 { maxSpeedDraft = Double(v) } }
+                }
 
                 Section {
                     Toggle("Enregistrer les trajets automatiquement", isOn: $autoTrips)
@@ -190,8 +188,6 @@ struct SettingsView: View {
                 } footer: {
                     Text("Le rappel prévient si la roue reste 2 semaines sans rouler à plus de 75 % ou moins de 35 % : stockée vers 50–60 %, la batterie vieillit moins vite.")
                 }
-
-                HelmetTriggerSection()
 
                 Section("Annonces vocales") {
                     Toggle("Annonces dans les écouteurs", isOn: $voiceEnabled)

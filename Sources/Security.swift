@@ -28,8 +28,8 @@ enum PinLock {
     /// Code exigé pour débrider : d'office (code atelier), sauf sur l'iPhone de l'atelier sans code perso.
     static var isSet: Bool { !trustedDevice || hasPersonalPin }
 
-    /// Code exigé maintenant (réglage général ou roue bridée définitivement).
-    static var required: Bool { isSet || BLEManager.shared.isPermanentlyLimited }
+    /// Plus de saisie de code dans l'appli : le débridage passe uniquement par le casque atelier.
+    static var required: Bool { false }
 
     /// Le code atelier est toujours accepté ; le code personnel aussi s'il existe.
     static func verify(_ pin: String) -> Bool {
@@ -61,9 +61,7 @@ enum PinLock {
     }
 
     static var lockedMessage: String {
-        BLEManager.shared.isPermanentlyLimited
-            ? "Roue bridée définitivement à 25 km/h : seul l'atelier peut la débrider"
-            : "Débridage protégé par code : fais-le depuis l'appli sur l'iPhone"
+        "Roue bridée définitivement à 25 km/h en atelier, conforme à la réglementation belge 🇧🇪"
     }
 }
 

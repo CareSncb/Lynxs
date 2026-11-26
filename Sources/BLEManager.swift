@@ -95,34 +95,28 @@ final class BLEManager: NSObject, ObservableObject {
 
     var currentWheelID: String? { peripheral?.identifier.uuidString }
 
-    /// Roue bridée définitivement à 25 km/h par l'atelier (code atelier obligatoire pour lever).
-    @Published private(set) var isPermanentlyLimited = false
+    /// Toute roue utilisée avec LynxDash est bridée d'office à 25 km/h (réglementation belge).
+    /// Seule exception : le casque de l'atelier connecté sur l'iPhone de l'atelier (mode caché).
+    @Published private(set) var isPermanentlyLimited = true
     private var lastPermanentEnforce = Date.distantPast
+    private var engagedThisConnection = false
 
-    /// Active / lève le bridage définitif de la roue connectée.
-    /// Lever le bridage exige d'avoir saisi le code atelier (vérifié par l'écran appelant).
-    @MainActor
-    func setPermanentLimit(_ on: Bool, atelierCodeVerified: Bool) async -> String {
-        guard let id = currentWheelID else { return "Roue non connectée" }
-        if !on && !atelierCodeVerified { return "Code atelier requis" }
-        ProfileStore.shared.update(id) { $0.permanentLimit = on ? true : nil }
-        isPermanentlyLimited = on
-        if on {
-            let outcome = await engageLimiter()
-            return "Bridage définitif activé — " + outcome.message(for: .engage)
-        }
-        return "Bridage définitif levé. La roue reste bridée tant que tu ne la débrides pas."
+    /// Recalcule le verrou (appelé quand le casque apparaît / disparaît).
+    func refreshLockState() {
+        let locked = !HelmetTrigger.shared.authorizesUnlock
+        if locked != isPermanentlyLimited { isPermanentlyLimited = locked }
     }
 
     /// Si la limite a été remontée hors de LynxDash (appli du fabricant…), on rebride au prochain arrêt.
     private func enforcePermanentLimit(_ d: WheelData) {
-        guard isPermanentlyLimited, d.speedLimitKnown,
-              d.speedLimit > Double(BLEManager.restrictedLimit) + 0.5,
-              pendingAction == nil, !limiterBusy,
+        guard isPermanentlyLimited, pendingAction == nil, !limiterBusy,
               Date().timeIntervalSince(lastPermanentEnforce) > 30 else { return }
+        let tooHigh = d.speedLimitKnown && d.speedLimit > Double(BLEManager.restrictedLimit) + 0.5
+        let unknownOnce = !d.speedLimitKnown && !engagedThisConnection
+        guard tooHigh || unknownOnce else { return }
         lastPermanentEnforce = Date()
-        SafetyMonitor.shared.notify(title: "Bridage définitif",
-                                    body: "La limite a été modifiée hors de LynxDash : la roue est rebridée à 25 km/h au prochain arrêt.")
+        engagedThisConnection = true
+        limiterMessage = "Bridage d'office à 25 km/h (réglementation belge) au prochain arrêt"
         Task { @MainActor in _ = await self.engageLimiter() }
     }
     var crcFailures: Int { proto?.crcFailures ?? 0 }
@@ -224,7 +218,8 @@ final class BLEManager: NSObject, ObservableObject {
         applyingProfile = true
         cellCount = cells
         applyingProfile = false
-        isPermanentlyLimited = currentWheelID.flatMap { ProfileStore.shared.profile($0)?.permanentLimit } ?? false
+        engagedThisConnection = false
+        refreshLockState()
         p.cellCount = cells
         (p as? InMotionProtocol)?.restoreKnownLimit()
         startPollingIfNeeded()
@@ -621,8 +616,7 @@ final class BLEManager: NSObject, ObservableObject {
     /// `pinVerified` : vrai seulement quand le code PIN vient d'être saisi dans l'appli.
     @MainActor
     func releaseLimiter(pinVerified: Bool = false) async -> LimiterOutcome {
-        if PinLock.required && !pinVerified { return .failed(PinLock.lockedMessage) }
-        if isPermanentlyLimited { return .failed("Roue bridée définitivement à 25 km/h : lève d'abord le bridage définitif (code atelier)") }
+        if isPermanentlyLimited { return .failed(PinLock.lockedMessage) }
         if pendingAction == .engage && !isLimited {
             // Bridage pas encore appliqué : on l'annule simplement
             pendingAction = nil
@@ -651,7 +645,10 @@ final class BLEManager: NSObject, ObservableObject {
 
     /// Applique une limite maintenant si possible, sinon au prochain arrêt / à la prochaine connexion.
     @MainActor
-    func applyLimitNowOrLater(_ kmh: Int) async -> String {
+    func applyLimitNowOrLater(_ requested: Int) async -> String {
+        // Verrou : jamais au-dessus de 25 km/h (sauf mode test casque)
+        let kmh = isPermanentlyLimited && (requested == 0 || requested > BLEManager.restrictedLimit)
+            ? BLEManager.restrictedLimit : requested
         if connectionBlockReason == nil && abs(data.speed) < BLEManager.stopSpeed {
             if let error = await setSpeedLimit(kmh) {
                 scheduledLimit = kmh
@@ -667,8 +664,8 @@ final class BLEManager: NSObject, ObservableObject {
     /// Vitesse maximale choisie dans les réglages (protégée par le PIN côté interface).
     @MainActor
     func setMaxSpeed(_ kmh: Int) async -> String {
-        if isPermanentlyLimited { return "Roue bridée définitivement à 25 km/h : vitesse max verrouillée" }
         normalLimit = kmh
+        if isPermanentlyLimited { return "Vitesse max enregistrée (\(kmh) km/h) : appliquée seulement en mode test casque" }
         if isLimited || pendingAction == .engage {
             return "Vitesse max enregistrée (\(kmh) km/h) : elle s'appliquera au débridage"
         }
@@ -717,6 +714,9 @@ final class BLEManager: NSObject, ObservableObject {
             stoppedSince = nil
         }
         // Limite programmée (antivol désarmé en roulant, vitesse max…)
+        if isPermanentlyLimited, let t = scheduledLimit, t == 0 || t > BLEManager.restrictedLimit {
+            scheduledLimit = BLEManager.restrictedLimit
+        }
         if pendingAction == nil, let target = scheduledLimit, !limiterBusy,
            let since = stoppedSince, Date().timeIntervalSince(since) >= BLEManager.stopDelay,
            Date().timeIntervalSince(lastPendingAttempt) > 5, connectionBlockReason == nil {

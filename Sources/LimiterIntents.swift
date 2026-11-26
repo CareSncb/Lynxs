@@ -49,10 +49,9 @@ enum LimiterToggle {
         let ble = BLEManager.shared
         await ble.waitForTelemetry(timeout: 12)
         let engaged = ble.isLimited || ble.pendingAction == .engage
-        if engaged && PinLock.required {
-            let text = "Roue bridée. " + PinLock.lockedMessage
-            VoiceAnnouncer.shared.speak("Débridage protégé par code", urgent: true)
-            return text
+        if engaged && ble.isPermanentlyLimited {
+            VoiceAnnouncer.shared.speak("Roue bridée définitivement à 25", urgent: true)
+            return PinLock.lockedMessage
         }
         let action: LimiterAction = engaged ? .release : .engage
         let outcome = engaged ? await ble.releaseLimiter() : await ble.engageLimiter()

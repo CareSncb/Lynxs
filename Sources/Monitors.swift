@@ -190,7 +190,7 @@ final class ZoneManager: ObservableObject {
             activeZone = nil
             if engagedByZone {
                 engagedByZone = false
-                if PinLock.required {
+                if PinLock.required || ble.isPermanentlyLimited {
                     SafetyMonitor.shared.notify(title: "Sortie de la zone « \(name) »",
                                                 body: "La roue reste bridée : débride avec ton code PIN dans l'appli")
                     return

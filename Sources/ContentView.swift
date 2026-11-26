@@ -58,7 +58,8 @@ struct ContentView: View {
     @State private var showHandlebar = false
     @State private var showWheelSettings = false
     @State private var lightOn = false
-    @State private var askPinForRelease = false
+    @State private var askAtelierCode = false
+    @State private var showAtelier = false
 
     private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10),
                            GridItem(.flexible(), spacing: 10)]
@@ -74,8 +75,9 @@ struct ContentView: View {
                     ChargeCard()
                     ProfileBar()
                     quickActions
-                    if ble.isPermanentlyLimited { PermanentLimitBadge() }
-                    else if ble.isLimited { BelgiumBadge() }
+                    if ble.state == .connected {
+                        if ble.isPermanentlyLimited { PermanentLimitBadge() } else { TestModeBadge() }
+                    }
                     WeatherCard()
                     SpeedGauge(speed: abs(ble.data.speed), pwm: ble.data.pwm,
                                showPWM: ble.data.hasPWM, maxSpeed: ble.maxSpeed)
@@ -112,6 +114,8 @@ struct ContentView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
             GyrocareLogo(size: 48)
+                // Accès atelier caché : appui long de 3 s sur le logo, puis code atelier
+                .onLongPressGesture(minimumDuration: 3) { askAtelierCode = true }
             VStack(alignment: .leading, spacing: 4) {
                 Text(ble.connectedName ?? "LynxDash")
                     .font(.title2.bold())
@@ -264,11 +268,7 @@ struct ContentView: View {
             QuickActionButton(icon: ble.isLimited ? "lock.fill" : (ble.pendingAction != nil ? "hourglass" : "lock.open"),
                               label: "Bridage", active: ble.isLimited || ble.pendingAction == .engage) {
                 let engaged = ble.isLimited || ble.pendingAction == .engage
-                if engaged && PinLock.required {
-                    askPinForRelease = true
-                } else {
-                    Task { @MainActor in ble.limiterMessage = await LimiterToggle.run() }
-                }
+                Task { @MainActor in ble.limiterMessage = await LimiterToggle.run() }
             }
             Spacer()
             QuickActionButton(icon: "rectangle.expand.vertical", label: "Guidon") { showHandlebar = true }
@@ -277,11 +277,10 @@ struct ContentView: View {
         }
         .disabled(!connected && ble.state != .idle)
         .padding(.horizontal, 4)
-        .pinProtected($askPinForRelease, title: "Code PIN pour débrider") {
-            Task { @MainActor in
-                ble.limiterMessage = await ble.releaseLimiter(pinVerified: true).message(for: .release)
-            }
+        .pinProtected($askAtelierCode, title: "Code atelier", atelierOnly: true) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { showAtelier = true }
         }
+        .sheet(isPresented: $showAtelier) { AtelierHiddenView() }
     }
 
     // MARK: Données en temps réel
@@ -343,7 +342,6 @@ struct WheelSettingsView: View {
                 NavigationLink { BlackBoxListView() } label: { Label("Boîte noire", systemImage: "record.circle") }
                 NavigationLink { AppointmentRequestView() } label: { Label("Rendez-vous chez \(Business.name)", systemImage: "calendar.badge.plus") }
             }
-            PermanentLimitSection()
             if ble.activeBrand == .inmotion {
                 Section {
                     Text("Sur la P6, seuls la limite de vitesse et la télémétrie sont confirmés. Les autres réglages de l'appli InMotion (phares, son, pédales, verrouillage…) arriveront après une capture Bluetooth de l'appli officielle.")
@@ -530,6 +528,9 @@ struct LimiterCard: View {
                         .font(.subheadline)
                 }
                 .foregroundStyle(.orange)
+            } else if engaged && ble.isPermanentlyLimited {
+                Label("Bridée définitivement en atelier", systemImage: "lock.shield.fill")
+                    .font(.subheadline.bold()).foregroundStyle(Theme.gold)
             } else {
                 HoldButton(title: engaged ? "Maintenir 2 s pour débrider" : "Maintenir 2 s pour brider",
                            tint: engaged ? .green : .orange,
@@ -722,54 +723,52 @@ struct AntiTheftCard: View {
 struct PermanentLimitBadge: View {
     var body: some View {
         HStack(spacing: 12) {
-            GyrocareLogo(size: 46)
+            Text("🇧🇪").font(.system(size: 40))
             VStack(alignment: .leading, spacing: 3) {
-                Text("Cette roue est bridée définitivement à 25 km/h")
+                Text("Bridée définitivement à 25 km/h")
                     .font(.headline).foregroundStyle(.white)
-                Text("Bridage posé par l'atelier \(Business.name) · 🇧🇪 conforme voie publique")
-                    .font(.caption).foregroundStyle(.white.opacity(0.8))
+                Text("Bridage réalisé en atelier par \(Business.name), conforme à la réglementation belge (engin de déplacement motorisé, voie publique).")
+                    .font(.caption).foregroundStyle(.white.opacity(0.85))
             }
             Spacer(minLength: 0)
-            Image(systemName: "lock.shield.fill").font(.title2).foregroundStyle(Theme.gold)
+            Image(systemName: "checkmark.shield.fill").font(.title2).foregroundStyle(.green)
         }
         .padding(14)
-        .background(LinearGradient(colors: [Theme.ember.opacity(0.45), Theme.accent.opacity(0.18)],
+        .background(LinearGradient(colors: [Color.black.opacity(0.55), Color(red: 0.99, green: 0.85, blue: 0.1).opacity(0.25),
+                                            Color(red: 0.94, green: 0.2, blue: 0.2).opacity(0.3)],
                                    startPoint: .leading, endPoint: .trailing),
                     in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Theme.accent.opacity(0.6)))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.green.opacity(0.5)))
     }
 }
 
-struct PermanentLimitSection: View {
-    @EnvironmentObject var ble: BLEManager
-    @State private var askCode = false
-    @State private var confirmOn = false
-    @State private var message: String?
-
+struct TestModeBadge: View {
     var body: some View {
-        Section {
-            Toggle(isOn: Binding(get: { ble.isPermanentlyLimited }, set: { on in
-                if on { confirmOn = true } else { askCode = true }
-            })) {
-                Label("Bridage définitif à 25 km/h", systemImage: "lock.shield.fill")
+        Label("Mode test atelier (casque) : roue débridable — terrain privé uniquement", systemImage: "exclamationmark.triangle.fill")
+            .font(.caption.bold())
+            .foregroundStyle(.black)
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.gold, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+/// Réglages atelier cachés (appui long sur le logo + code atelier).
+struct AtelierHiddenView: View {
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            List {
+                HelmetTriggerSection()
+                Section {
+                    Text("Sans le casque, toutes les roues restent bridées à 25 km/h. Ce réglage n'existe que sur cet iPhone.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
-            .disabled(ble.state != .connected)
-            if let message { Text(message).font(.caption).foregroundStyle(.secondary) }
-        } header: {
-            Text("Atelier")
-        } footer: {
-            Text("La roue est bridée à 25 km/h et ne peut plus être débridée depuis LynxDash (montre, Siri, zones, profils compris) sans le code atelier. Si la limite est remontée avec une autre appli, LynxDash la rebride au prochain arrêt dès qu'il se connecte. Réglage enregistré sur cet iPhone : active-le sur le téléphone du client.")
-        }
-        .pinProtected($askCode, title: "Code atelier pour lever le bridage définitif", atelierOnly: true) {
-            Task { @MainActor in message = await ble.setPermanentLimit(false, atelierCodeVerified: true) }
-        }
-        .alert("Brider définitivement cette roue ?", isPresented: $confirmOn) {
-            Button("Annuler", role: .cancel) {}
-            Button("Brider définitivement") {
-                Task { @MainActor in message = await ble.setPermanentLimit(true, atelierCodeVerified: false) }
-            }
-        } message: {
-            Text("Seul le code atelier permettra de la débrider.")
+            .themedList()
+            .navigationTitle("Atelier")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("OK") { dismiss() } } }
         }
     }
 }

@@ -6,12 +6,12 @@ import SwiftUI
 /// Surveille la sortie audio de l'iPhone.
 /// - Casque (ex. « X1 Plus ») absent alors que la roue est connectée → bridage à 25 km/h
 ///   (au prochain arrêt si elle roule), y compris si on part sans casque.
-/// - Casque présent → la roue est débridée, mais seulement si c'est le casque qui l'avait bridée
-///   (pas un bridage manuel, une zone ou un bridage définitif).
+/// - Casque présent (mode atelier caché activé sur cet iPhone) → la roue est débridée (mode test).
+/// Sans ce mode, toutes les roues restent bridées d'office à 25 km/h.
 final class HelmetTrigger: ObservableObject {
     static let shared = HelmetTrigger()
 
-    @AppStorage("helmetTrigger") var enabled = true
+    @AppStorage("helmetTriggerAtelier") var enabled = false
     @AppStorage("helmetName") var helmetName = "X1 Plus"
 
     /// Le casque est-il actuellement connecté comme sortie audio ?
@@ -21,14 +21,10 @@ final class HelmetTrigger: ObservableObject {
     private var lastPoll = Date.distantPast
     private var observer: NSObjectProtocol?
     private var lastAction = Date.distantPast
-    private var connectedSince: Date?
     private var busy = false
 
-    /// Bridage posé par le casque pour cette roue (mémorisé entre deux connexions).
-    private var engagedByHelmet: Bool {
-        get { BLEManager.shared.currentWheelID.map { UserDefaults.standard.bool(forKey: "helmetEngaged-\($0)") } ?? false }
-        set { if let id = BLEManager.shared.currentWheelID { UserDefaults.standard.set(newValue, forKey: "helmetEngaged-\(id)") } }
-    }
+    /// Débridage autorisé : mode casque activé sur cet iPhone ET casque connecté.
+    var authorizesUnlock: Bool { enabled && helmetConnected }
 
     init() {
         observer = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification,
@@ -58,49 +54,33 @@ final class HelmetTrigger: ObservableObject {
         let present = route.contains { port in
             [.bluetoothA2DP, .bluetoothHFP, .bluetoothLE].contains(port.portType) && matches(port.portName)
         }
-        helmetConnected = present
+        if present != helmetConnected { helmetConnected = present }
+        BLEManager.shared.refreshLockState()
         enforce(now: now)
     }
 
-    /// Applique la règle « casque absent = bridée, casque présent = libre ».
+    /// Casque connecté → débridage (hors zone GPS) ; casque absent → le bridage d'office reprend.
     private func enforce(now: Date) {
         let ble = BLEManager.shared
-        guard enabled, ble.state == .connected else { connectedSince = nil; return }
-        if connectedSince == nil { connectedSince = now }
-        // On laisse 15 s au casque pour se connecter après la roue, et 10 s entre deux actions
-        guard !busy, now.timeIntervalSince(connectedSince ?? now) >= 15,
+        guard enabled, ble.state == .connected, !busy,
               now.timeIntervalSince(lastAction) >= 10 else { return }
         let engaged = ble.isLimited || ble.pendingAction == .engage
-
-        if !helmetConnected && !engaged {
-            act(now) {
-                let outcome = await ble.engageLimiter()
-                if case .failed = outcome { return "Bridage impossible : " + outcome.message(for: .engage) }
-                self.engagedByHelmet = true
-                VoiceAnnouncer.shared.speak("Casque absent, bridage à 25", urgent: true)
-                return "Casque \(self.helmetName) absent : " + outcome.message(for: .engage)
-            }
-        } else if helmetConnected && engaged && engagedByHelmet {
-            if ble.isPermanentlyLimited || ZoneManager.shared.activeZone != nil {
-                engagedByHelmet = false     // un autre bridage prend le relais
-                return
-            }
-            if PinLock.required {
-                lastAction = now
-                lastEvent = "Casque connecté, mais débridage protégé par code : active « iPhone de l'atelier » ou débride à la main"
-                return
-            }
+        if helmetConnected && engaged && ZoneManager.shared.activeZone == nil {
             act(now) {
                 let outcome = await ble.releaseLimiter()
-                if case .failed = outcome { return "Débridage impossible : " + outcome.message(for: .release) }
-                self.engagedByHelmet = false
-                VoiceAnnouncer.shared.speak("Casque connecté, débridage", urgent: true)
+                VoiceAnnouncer.shared.speak("Casque connecté, mode test", urgent: true)
                 return "Casque \(self.helmetName) connecté : " + outcome.message(for: .release)
+            }
+        } else if !helmetConnected && !engaged {
+            act(now) {
+                let outcome = await ble.engageLimiter()
+                VoiceAnnouncer.shared.speak("Casque absent, bridage à 25", urgent: true)
+                return "Casque \(self.helmetName) absent : " + outcome.message(for: .engage)
             }
         }
     }
 
-    func wheelDisconnected() { connectedSince = nil }
+    func wheelDisconnected() {}
 
     private func act(_ now: Date, _ work: @escaping @MainActor () async -> String) {
         busy = true
@@ -122,7 +102,8 @@ struct HelmetTriggerSection: View {
 
     var body: some View {
         Section {
-            Toggle("Bridée sans casque, libre avec casque", isOn: helmet.$enabled)
+            Toggle("Débridage par casque (cet iPhone)", isOn: helmet.$enabled)
+                .onChange(of: helmet.enabled) { _, _ in BLEManager.shared.refreshLockState() }
             HStack {
                 Text("Nom du casque")
                 Spacer()
@@ -141,7 +122,7 @@ struct HelmetTriggerSection: View {
         } header: {
             Text("Casque Bluetooth")
         } footer: {
-            Text("Sans le casque (éteint ou jamais connecté 15 s après la roue), la roue se bride à 25 km/h, au prochain arrêt si tu roules. Casque reconnecté : elle est débridée, seulement si c'est le casque qui l'avait bridée (un bridage manuel, une zone ou un bridage définitif restent en place). Le débridage automatique demande « iPhone de l'atelier » activé ou aucun code. Le nom doit correspondre à celui affiché dans « Sortie audio actuelle » casque allumé.")
+            Text("Casque allumé et connecté à cet iPhone : la roue est débridée (mode test, terrain privé). Casque éteint : elle se rebride à 25 km/h, au prochain arrêt si tu roules. Le nom doit correspondre à celui affiché dans « Sortie audio actuelle » casque allumé.")
         }
         .onAppear { outputs = HelmetTrigger.currentOutputs; helmet.poll(force: true) }
         .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.routeChangeNotification)) { _ in
