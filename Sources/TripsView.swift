@@ -11,10 +11,6 @@ struct TripsView: View {
         NavigationStack {
             List {
                 Section {
-                    StatsCard()
-                }
-
-                Section {
                     if recorder.isRecording {
                         HStack {
                             Image(systemName: "record.circle").foregroundStyle(.red)
@@ -52,25 +48,40 @@ struct TripsView: View {
                     }
                 }
 
-                Section("Trajets") {
-                    if store.trips.isEmpty {
-                        Text("Aucun trajet pour l'instant").foregroundStyle(.secondary)
-                    }
-                    ForEach(store.trips) { trip in
-                        NavigationLink {
-                            TripDetailView(trip: trip)
-                        } label: {
-                            TripRow(trip: trip)
-                        }
-                    }
-                    .onDelete { idx in
-                        for i in idx { store.delete(id: store.trips[i].id) }
-                    }
-                }
             }
             .themedList()
             .navigationTitle("Trajets")
         }
+    }
+}
+
+/// Historique des trajets (statistiques + liste) — accessible depuis le menu atelier caché.
+struct TripHistoryView: View {
+    @ObservedObject private var store = TripStore.shared
+
+    var body: some View {
+        List {
+            Section {
+                StatsCard()
+            }
+            Section("Trajets") {
+                if store.trips.isEmpty {
+                    Text("Aucun trajet pour l'instant").foregroundStyle(.secondary)
+                }
+                ForEach(store.trips) { trip in
+                    NavigationLink {
+                        TripDetailView(trip: trip)
+                    } label: {
+                        TripRow(trip: trip)
+                    }
+                }
+                .onDelete { idx in
+                    for i in idx { store.delete(id: store.trips[i].id) }
+                }
+            }
+        }
+        .themedList()
+        .navigationTitle("Historique des trajets")
     }
 }
 

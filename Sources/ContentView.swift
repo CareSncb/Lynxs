@@ -777,6 +777,7 @@ struct AtelierHiddenView: View {
                     } label: {
                         Label("Atelier : fiches, factures, RDV, relances", systemImage: "wrench.and.screwdriver")
                     }
+                    NavigationLink { TripHistoryView() } label: { Label("Historique des trajets", systemImage: "map") }
                     NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
                 } header: {
                     Text(Business.name)
