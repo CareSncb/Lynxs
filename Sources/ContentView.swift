@@ -8,6 +8,7 @@ struct RootView: View {
     @AppStorage("onboardingDone") private var onboardingDone = false
 
     var body: some View {
+        ZStack {
         TabView {
             ContentView()
                 .tabItem { Label("Roue", systemImage: "gauge.with.dots.needle.67percent") }
@@ -20,15 +21,19 @@ struct RootView: View {
         .fullScreenCover(isPresented: Binding(get: { safety.fallCountdown != nil }, set: { _ in })) {
             FallAlertView()
         }
-        // Assistant de première installation (pas pour ceux qui ont déjà connecté une roue)
-        .fullScreenCover(isPresented: Binding(get: { !onboardingDone && safety.fallCountdown == nil },
-                                              set: { if !$0 { onboardingDone = true } })) {
-            OnboardingView().environmentObject(ble)
+
+            // Assistant de première installation : affiché par-dessus l'appli (pas en feuille
+            // modale, qui se faisait fermer aussitôt par les autres fenêtres au lancement).
+            // Il ne se ferme qu'avec « Terminer ».
+            if !onboardingDone {
+                OnboardingView()
+                    .environmentObject(ble)
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
         }
-        .onAppear {
-            if !onboardingDone && !ProfileStore.shared.profiles.isEmpty { onboardingDone = true }
-            UpdateChecker.shared.checkIfNeeded()
-        }
+        .animation(.easeInOut(duration: 0.3), value: onboardingDone)
+        .onAppear { UpdateChecker.shared.checkIfNeeded() }
     }
 }
 

@@ -166,6 +166,14 @@ struct SettingsView: View {
                     Text("Le rappel prévient si la roue reste 2 semaines sans rouler à plus de 75 % ou moins de 35 % : stockée vers 50–60 %, la batterie vieillit moins vite.")
                 }
 
+                Section {
+                    Button {
+                        UserDefaults.standard.set(false, forKey: "onboardingDone")
+                    } label: {
+                        Label("Revoir le guide de démarrage", systemImage: "sparkles")
+                    }
+                }
+
                 Section("Annonces vocales") {
                     Toggle("Annonces dans les écouteurs", isOn: $voiceEnabled)
                     if voiceEnabled {
