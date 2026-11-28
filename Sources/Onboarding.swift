@@ -43,6 +43,7 @@ struct OnboardingView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onTapGesture { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
         .sheet(isPresented: $showScanner) { ScannerView().environmentObject(ble) }
     }
 

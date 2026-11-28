@@ -1,3 +1,4 @@
+import UIKit
 import SwiftUI
 
 /// Identité visuelle Gyrocare : coucher de soleil orange, rouge braise et noir carbone.
@@ -90,6 +91,21 @@ extension View {
     /// Listes et formulaires transparents sur le fond de l'appli.
     func themedList() -> some View {
         self.scrollContentBackground(.hidden).background(AppBackground())
+            .scrollDismissesKeyboard(.interactively)   // glisser vers le bas ferme le clavier
+            .keyboardDoneButton()
+    }
+
+    /// Bouton « OK » au-dessus du clavier (le pavé numérique n'a pas de touche Retour).
+    func keyboardDoneButton() -> some View {
+        self.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("OK") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                .bold()
+            }
+        }
     }
 }
 
