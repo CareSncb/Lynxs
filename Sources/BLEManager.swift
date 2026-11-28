@@ -152,6 +152,7 @@ final class BLEManager: NSObject, ObservableObject {
         limiterMessage = PinLock.lockedMessage
         if tooHigh, now.timeIntervalSince(lastEnforceNotice) > 60 {
             lastEnforceNotice = now
+            TamperLog.record(wheel: connectedName ?? "Roue", limit: d.speedLimit, speed: abs(d.speed))
             SafetyMonitor.shared.notify(title: "Bridage définitif",
                                         body: String(format: "Limite modifiée hors de l'appli (%.0f km/h) : roue rebridée à 25 km/h.", d.speedLimit))
             VoiceAnnouncer.shared.speak("Limite modifiée, rebridage à 25", urgent: true)

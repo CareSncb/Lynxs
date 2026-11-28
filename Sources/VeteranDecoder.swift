@@ -13,6 +13,10 @@ final class VeteranDecoder: WheelProtocol {
     private var buffer: [UInt8] = []
     private var last = WheelData()
     private var events: [VeteranEvent] = []
+    /// BMS intelligent (Lynx = modèle 5, Sherman L = 6, Lynx S = 9…) : 2 packs, jusqu'à 42 cellules.
+    private var bmsCells: [[Double]] = [Array(repeating: 0, count: 42), Array(repeating: 0, count: 42)]
+    private var bmsTemps: [[Double]] = [Array(repeating: 0, count: 6), Array(repeating: 0, count: 6)]
+    private var bmsSeen = false
 
     var supportsEventLog: Bool { last.newProtocol }
 
@@ -156,9 +160,34 @@ final class VeteranDecoder: WheelProtocol {
             d.newProtocol = true
         }
 
+        parseSmartBMS(f, model: modelId)
+        if bmsSeen { d.bmsCells = bmsCells; d.bmsTemps = bmsTemps }
+
         d.batteryPercent = estimateBattery(voltage: d.voltage, cells: cellCount)
         if d.newProtocol, let entries = VeteranEvent.parse(frame: f) { events.append(contentsOf: entries) }
         return d
+    }
+
+    /// BMS intelligent, d'après WheelLog (open source) : l'octet 46 indique le paquet
+    /// (1-3 = pack 1, 5-7 = pack 2) ; cellules en mV big-endian.
+    private func parseSmartBMS(_ f: [UInt8], model: Int) {
+        guard model >= 5, f.count > 46 else { return }
+        let pnum = Int(f[46])
+        let pack = pnum < 4 ? 0 : 1
+        func u16(_ o: Int) -> Int? { o + 1 < f.count ? Bytes.u16be(f, o) : nil }
+        func s16(_ o: Int) -> Int? { o + 1 < f.count ? Bytes.s16be(f, o) : nil }
+        switch pnum {
+        case 1, 5:
+            for i in 0..<15 { if let v = s16(53 + i * 2) { bmsCells[pack][i] = Double(v) / 1000 } }
+            bmsSeen = true
+        case 2, 6:
+            for i in 0..<15 { if let v = u16(53 + i * 2) { bmsCells[pack][i + 15] = Double(v) / 1000 } }
+        case 3, 7:
+            for i in 0..<12 { if let v = u16(59 + i * 2) { bmsCells[pack][i + 30] = Double(v) / 1000 } }
+            for i in 0..<6 { if let v = s16(47 + i * 2) { bmsTemps[pack][i] = Double(v) / 100 } }
+        default:
+            break
+        }
     }
 
     // MARK: - Commandes

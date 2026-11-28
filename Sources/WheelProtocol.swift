@@ -59,6 +59,11 @@ struct WheelData: Equatable {
     var crcValid = false
     var newProtocol = false          // Leaperkim : trames longues avec CRC
 
+    /// Tensions de chaque cellule (V) par pack, pour les roues à BMS intelligent (Leaperkim Lynx…).
+    var bmsCells: [[Double]]?
+    /// Températures des sondes de chaque pack (°C).
+    var bmsTemps: [[Double]]?
+
     var isCharging: Bool { chargeMode != 0 }
 
     var firmwareString: String {

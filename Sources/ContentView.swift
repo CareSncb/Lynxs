@@ -5,6 +5,7 @@ import UIKit
 struct RootView: View {
     @EnvironmentObject var ble: BLEManager
     @ObservedObject private var safety = SafetyMonitor.shared
+    @AppStorage("onboardingDone") private var onboardingDone = false
 
     var body: some View {
         TabView {
@@ -18,6 +19,15 @@ struct RootView: View {
         .tint(Theme.accent)
         .fullScreenCover(isPresented: Binding(get: { safety.fallCountdown != nil }, set: { _ in })) {
             FallAlertView()
+        }
+        // Assistant de première installation (pas pour ceux qui ont déjà connecté une roue)
+        .fullScreenCover(isPresented: Binding(get: { !onboardingDone && safety.fallCountdown == nil },
+                                              set: { if !$0 { onboardingDone = true } })) {
+            OnboardingView().environmentObject(ble)
+        }
+        .onAppear {
+            if !onboardingDone && !ProfileStore.shared.profiles.isEmpty { onboardingDone = true }
+            UpdateChecker.shared.checkIfNeeded()
         }
     }
 }
@@ -69,6 +79,7 @@ struct ContentView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     header
+                    UpdateBanner()
                     hero
                     // Mention de bridage définitif : toujours visible (preuve de bonne foi du client)
                     if ble.isPermanentlyLimited { PermanentLimitBadge() }
@@ -348,7 +359,9 @@ struct WheelSettingsView: View {
                 NavigationLink { MaintenanceView() } label: { Label("Entretien", systemImage: "calendar.badge.clock") }
                 NavigationLink { EventLogView() } label: { Label("Journal d'erreurs", systemImage: "exclamationmark.triangle") }
                 NavigationLink { BatteryHealthView() } label: { Label("Santé de la batterie", systemImage: "heart.text.square") }
+                NavigationLink { BatteryCellsView() } label: { Label("Cellules de la batterie", systemImage: "battery.100percent") }
                 NavigationLink { BlackBoxListView() } label: { Label("Boîte noire", systemImage: "record.circle") }
+                CertificateButton()
                 NavigationLink { AppointmentRequestView() } label: { Label("Rendez-vous chez \(Business.name)", systemImage: "calendar.badge.plus") }
             }
             if ble.activeBrand == .inmotion {
@@ -817,6 +830,9 @@ struct AtelierHiddenView: View {
                     NavigationLink { TripHistoryView() } label: { Label("Historique des trajets", systemImage: "map") }
                     NavigationLink { AdvancedSettingsView() } label: { Label("Réglages avancés (montre, alarmes, diagnostic)", systemImage: "gearshape.2") }
                     NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
+                    NavigationLink { TamperLogView() } label: { Label("Débridages détectés", systemImage: "exclamationmark.shield") }
+                    NavigationLink { LoanView() } label: { Label("Roue de prêt", systemImage: "arrow.left.arrow.right.circle") }
+                    NavigationLink { BatteryCellsView() } label: { Label("Cellules de la batterie", systemImage: "battery.100percent") }
                 } header: {
                     Text(Business.name)
                 }

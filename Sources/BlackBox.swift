@@ -286,6 +286,7 @@ struct BlackBoxDetailView: View {
                     Link(destination: maps) { Label("Voir l'endroit sur Plans", systemImage: "map") }
                 }
             }
+            AccidentReportSection(record: record)
             if let csv = BlackBox.shared.exportCSV(record) {
                 Section {
                     ShareLink(item: csv) { Label("Exporter en CSV", systemImage: "square.and.arrow.up") }
