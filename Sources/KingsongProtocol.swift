@@ -95,7 +95,7 @@ final class KingsongProtocol: WheelProtocol {
     }
 
     func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand] {
-        [WheelCommand(KingsongProtocol.frame(0x87) { f in f[2] = UInt8(mode.rawValue); f[3] = 0xE0 })]
+        [WheelCommand(KingsongProtocol.frame(0x87) { f in f[2] = UInt8(mode.rawValue); f[3] = 0xE0; f[17] = 0x15 })]   // 0x15 comme WheelLog
     }
 
     func feed(_ data: Data) -> [WheelData] {

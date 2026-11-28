@@ -44,19 +44,24 @@ final class BegodeProtocol: WheelProtocol {
     /// Bip de la roue : « b » (WheelLog).
     func hornCommands() -> [WheelCommand] { [WheelCommand([0x62])] }
 
+    /// Comme WheelLog : chaque réglage est suivi d'un « b » 100 ms après (validation par la roue).
+    private func withConfirm(_ c: UInt8) -> [WheelCommand] {
+        [WheelCommand([c], delayAfter: 0.1), WheelCommand([0x62])]
+    }
+
     func lightCommands(_ mode: LightMode) -> [WheelCommand] {
         switch mode {
-        case .off: return [WheelCommand([0x45])]       // 'E'
-        case .on: return [WheelCommand([0x51])]        // 'Q'
-        case .special: return [WheelCommand([0x54])]   // 'T'
+        case .off: return withConfirm(0x45)       // 'E'
+        case .on: return withConfirm(0x51)        // 'Q'
+        case .special: return withConfirm(0x54)   // 'T' stroboscope
         }
     }
 
     func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand] {
         switch mode {
-        case .hard: return [WheelCommand([0x68])]      // 'h'
-        case .medium: return [WheelCommand([0x66])]    // 'f'
-        case .soft: return [WheelCommand([0x73])]      // 's'
+        case .hard: return withConfirm(0x68)      // 'h'
+        case .medium: return withConfirm(0x66)    // 'f'
+        case .soft: return withConfirm(0x73)      // 's'
         }
     }
 
