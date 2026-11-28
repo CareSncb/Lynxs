@@ -61,10 +61,7 @@ final class VeteranDecoder: WheelProtocol {
     }
 
     func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand] {
-        if last.newProtocol {
-            let value: UInt8 = mode == .hard ? 3 : (mode == .medium ? 2 : 1)
-            return [WheelCommand(VeteranDecoder.command(107, payload: [0x01, 0x80, value]))]
-        }
+        // Comme WheelLog : commande texte pour tous les modèles (SETh / SETm / SETs)
         let text = mode == .hard ? "SETh" : (mode == .medium ? "SETm" : "SETs")
         return [WheelCommand(Array(text.utf8))]
     }
