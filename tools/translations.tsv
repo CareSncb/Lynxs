@@ -1,0 +1,410 @@
+0 s = moment de l'incident. Les valeurs négatives sont avant, les positives après.	0 s = moment van het incident. Negatieve waarden zijn ervoor, positieve erna.	0 s = moment of the incident. Negative values are before, positive values after.
+3 h	3 u	3 h
+Actualiser	Vernieuwen	Refresh
+Actualiser le classement	Klassement vernieuwen	Refresh leaderboard
+Actuelle	Huidig	Current
+Adresse	Adres	Address
+Affichées (glisse pour réordonner)	Weergegeven (sleep om te herschikken)	Shown (drag to reorder)
+Ajouter	Toevoegen	Add
+Ajouter un profil	Profiel toevoegen	Add a profile
+Ajouter une ligne	Regel toevoegen	Add a line
+Ajouter une prise à ma position	Stopcontact toevoegen op mijn locatie	Add an outlet at my location
+Alarmes	Alarmen	Alarms
+Alarmes de sécurité	Veiligheidsalarmen	Safety alarms
+Alarmes du téléphone (son + vibration)	Telefoonalarmen (geluid + trillen)	Phone alarms (sound + vibration)
+Alerte PWM	PWM-alarm	PWM alert
+Alerte météo au départ	Weeralarm bij vertrek	Weather alert when leaving
+Alertes charge et température	Laad- en temperatuurmeldingen	Charge and temperature alerts
+Allume ta roue, on s'occupe du reste	Zet je wiel aan, wij doen de rest	Turn on your wheel, we'll handle the rest
+Allumé	Aan	On
+Ambiance	Sfeer	Ambience
+Améliorations et corrections	Verbeteringen en correcties	Improvements and fixes
+Annonces dans les écouteurs	Meldingen in je oortjes	Announcements in your earphones
+Annonces vocales	Gesproken meldingen	Voice announcements
+Annuler	Annuleren	Cancel
+Appeler	Bellen	Call
+Appliquer la vitesse max	Maximumsnelheid toepassen	Apply max speed
+Après une chute probable, un compte à rebours de 30 s démarre avec sirène. Sans réponse : iOS prépare un SMS avec ta position (tu dois appuyer sur Envoyer, Apple n'autorise pas l'envoi automatique). Pour un envoi 100 % automatique, ton contact installe l'appli gratuite « ntfy » et s'abonne au même sujet (choisis un nom unique, ex. gyrocare-ton-prenom-1234).	Na een waarschijnlijke val start een aftelling van 30 s met sirene. Zonder reactie bereidt iOS een sms met je locatie voor (je moet op Verzenden tikken, Apple staat automatisch verzenden niet toe). Voor 100 % automatisch verzenden installeert je contact de gratis app « ntfy » en abonneert zich op hetzelfde onderwerp (kies een unieke naam, bv. gyrocare-jouw-naam-1234).	After a probable fall, a 30 s countdown starts with a siren. Without a response, iOS prepares a text with your location (you must tap Send, Apple doesn't allow automatic sending). For fully automatic sending, your contact installs the free « ntfy » app and subscribes to the same topic (pick a unique name, e.g. gyrocare-your-name-1234).
+Armer	Inschakelen	Arm
+Armer l'antivol ?	Antidiefstal inschakelen?	Arm the anti-theft?
+Arrêter	Stoppen	Stop
+Astuce : note l'heure de début de ta vidéo GoPro pour caler le passage. L'heure de chaque instant du trajet s'affiche ci-dessus.	Tip: noteer het beginuur van je GoPro-video om het fragment af te stemmen. Het tijdstip van elk moment van de rit staat hierboven.	Tip: note the start time of your GoPro video to line up the section. The time of each moment of the ride is shown above.
+Atelier	Werkplaats	Workshop
+Atelier : fiches, factures, RDV, relances	Werkplaats: fiches, facturen, afspraken, herinneringen	Workshop: reports, invoices, appointments, reminders
+Aucun client à relancer dans les 2 semaines. Fixe la prochaine révision dans la fiche diagnostic.	Geen klanten om binnen 2 weken te herinneren. Stel de volgende onderhoudsbeurt in op de diagnosefiche.	No customers to remind within 2 weeks. Set the next service on the diagnostic report.
+Aucun débridage détecté sur cet iPhone.	Geen ontgrendeling gedetecteerd op deze iPhone.	No unlocking detected on this iPhone.
+Aucun incident enregistré	Geen incidenten opgeslagen	No incidents recorded
+Aucun trajet pour l'instant	Nog geen ritten	No rides yet
+Aucune demande. Les clients envoient leur demande depuis LynxDash (Réglages de la roue › Rendez-vous) ; ouvre le lien reçu pour l'ajouter ici.	Geen aanvragen. Klanten sturen hun aanvraag vanuit LynxDash (Wielinstellingen › Afspraak); open de ontvangen link om ze hier toe te voegen.	No requests. Customers send their request from LynxDash (Wheel settings › Appointment); open the link you receive to add it here.
+Aucune roue enregistrée	Geen wielen opgeslagen	No saved wheels
+Autoriser la position	Locatie toestaan	Allow location
+Autoriser les notifications	Meldingen toestaan	Allow notifications
+Batterie	Batterij	Battery
+Batterie chargée, roue réchauffée. Lance le test puis fais plusieurs accélérations franches pendant 60 secondes, en sécurité. L'appli mesure la chute de tension sous charge.	Batterij geladen, wiel opgewarmd. Start de test en accelereer meerdere keren stevig gedurende 60 seconden, veilig. De app meet de spanningsval onder belasting.	Battery charged, wheel warmed up. Start the test, then accelerate firmly several times for 60 seconds, safely. The app measures the voltage drop under load.
+Batterie et température	Batterij en temperatuur	Battery and temperature
+Bienvenue	Welkom	Welcome
+Bips progressifs dans les écouteurs	Oplopende piepjes in je oortjes	Progressive beeps in your earphones
+Bleu : vitesse (km/h) · Orange : PWM (%) · Axe horizontal en minutes	Blauw: snelheid (km/u) · Oranje: PWM (%) · Horizontale as in minuten	Blue: speed (km/h) · Orange: PWM (%) · Horizontal axis in minutes
+Bloquée à 25 km/h	Begrensd op 25 km/u	Limited to 25 km/h
+Boîte noire	Zwarte doos	Black box
+Bridage	Begrenzing	Speed limit
+Brider	Begrenzen	Limit
+Brider la roue à 25 km/h ?	Wiel begrenzen op 25 km/u?	Limit the wheel to 25 km/h?
+Bridée définitivement en atelier	Definitief begrensd in de werkplaats	Permanently limited by the workshop
+Bridée définitivement à 25 km/h	Definitief begrensd op 25 km/u	Permanently limited to 25 km/h
+C'est prêt ! Touche « Terminer ».	Klaar! Tik op « Klaar ».	All set! Tap « Finish ».
+Calcul du temps restant…	Resterende tijd berekenen…	Calculating time remaining…
+Capacité batterie	Batterijcapaciteit	Battery capacity
+Casque Bluetooth	Bluetooth-helm	Bluetooth helmet
+Casque allumé et connecté à cet iPhone : la roue est débridée (mode test, terrain privé). Casque éteint : elle se rebride à 25 km/h, au prochain arrêt si tu roules. Le nom doit correspondre à celui affiché dans « Sortie audio actuelle » casque allumé.	Helm aan en verbonden met deze iPhone: het wiel is ontgrendeld (testmodus, privéterrein). Helm uit: het wordt opnieuw begrensd op 25 km/u, bij de volgende stop als je rijdt. De naam moet overeenkomen met die bij « Huidige audio-uitgang » met de helm aan.	Helmet on and connected to this iPhone: the wheel is unlocked (test mode, private grounds). Helmet off: it's limited to 25 km/h again, at the next stop if you're riding. The name must match the one shown under « Current audio output » with the helmet on.
+Catalogue	Catalogus	Catalog
+Catalogue pièces et tarifs	Catalogus onderdelen en prijzen	Parts and prices catalog
+Cellules	Cellen	Cells
+Cellules de la batterie	Batterijcellen	Battery cells
+Ces informations apparaissent en en-tête des devis, factures et fiches diagnostic.	Deze gegevens verschijnen bovenaan offertes, facturen en diagnosefiches.	This information appears in the header of quotes, invoices and diagnostic reports.
+Changer de lien	Link wijzigen	Change link
+Chaque participant entre le même code (ex. ride-bruxelles-0612). La position, la vitesse et la batterie sont partagées toutes les 10 s via le service gratuit ntfy.sh, tant que la sortie est active. Choisis un code difficile à deviner.	Elke deelnemer voert dezelfde code in (bv. ride-brussel-0612). Locatie, snelheid en batterij worden elke 10 s gedeeld via de gratis dienst ntfy.sh zolang de rit actief is. Kies een moeilijk te raden code.	Every participant enters the same code (e.g. ride-brussels-0612). Location, speed and battery are shared every 10 s through the free ntfy.sh service while the ride is active. Pick a code that's hard to guess.
+Charge et coût	Opladen en kosten	Charging and cost
+Chercher ma roue	Mijn wiel zoeken	Find my wheel
+Chercher une roue	Een wiel zoeken	Search for a wheel
+Choisir la roue	Wiel kiezen	Choose the wheel
+Chute détectée ?	Val gedetecteerd?	Fall detected?
+Chute totale	Totale val	Total drop
+Classement	Klassement	Leaderboard
+Classement et défis entre amis	Klassement en uitdagingen met vrienden	Leaderboard and challenges with friends
+Client	Klant	Customer
+Clients	Klanten	Customers
+Clôturer le prêt (retour de la roue)	Uitlening afsluiten (wiel terug)	Close the loan (wheel returned)
+Code PIN	Pincode	PIN code
+Code actuel	Huidige code	Current code
+Code atelier	Werkplaatscode	Workshop code
+Code du club (le même pour tous)	Clubcode (voor iedereen dezelfde)	Club code (the same for everyone)
+Code du groupe (le même pour tous)	Groepscode (voor iedereen dezelfde)	Group code (the same for everyone)
+Code incorrect	Onjuiste code	Wrong code
+Code personnel (facultatif)	Persoonlijke code (optioneel)	Personal code (optional)
+Codes de débridage	Ontgrendelcodes	Unlock codes
+Commandes	Bediening	Controls
+Compteur	Kilometerteller	Odometer
+Conditions idéales pour rouler	Ideale omstandigheden om te rijden	Ideal riding conditions
+Confirmer	Bevestigen	Confirm
+Connecte la roue de prêt pour démarrer ou clôturer un prêt.	Verbind het leenwiel om een uitlening te starten of af te sluiten.	Connect the loan wheel to start or close a loan.
+Connecte la roue du client pour créer une fiche.	Verbind het wiel van de klant om een fiche te maken.	Connect the customer's wheel to create a report.
+Connecte la roue pour voir son entretien.	Verbind het wiel om het onderhoud te zien.	Connect the wheel to see its maintenance.
+Connecte ta roue pour joindre son diagnostic automatiquement	Verbind je wiel om de diagnose automatisch toe te voegen	Connect your wheel to attach its diagnostics automatically
+Connectée	Verbonden	Connected
+Connexion automatique	Automatisch verbinden	Automatic connection
+Consommation et autonomie : disponibles après quelques trajets de plus d'1 km.	Verbruik en bereik: beschikbaar na enkele ritten van meer dan 1 km.	Consumption and range: available after a few rides over 1 km.
+Coordonnées	Contactgegevens	Contact details
+Coordonnées de l'atelier	Gegevens van de werkplaats	Workshop details
+Couper la sirène	Sirene uitzetten	Stop the siren
+Courant de phase max	Max. fasestroom	Max phase current
+Coût moyen	Gemiddelde kosten	Average cost
+Création de la vidéo…	Video wordt gemaakt…	Creating the video…
+Crée un nouveau lien secret : l'ancien ne montre plus rien. Les positions sont chiffrées de bout en bout : les serveurs gratuits HiveMQ et ntfy.sh qui les transportent ne peuvent pas les lire, seul le lien permet de les déchiffrer.	Maakt een nieuwe geheime link: de oude toont niets meer. De locaties zijn end-to-end versleuteld: de gratis servers HiveMQ en ntfy.sh die ze doorgeven kunnen ze niet lezen, alleen de link kan ze ontcijferen.	Creates a new secret link: the old one shows nothing anymore. Locations are end-to-end encrypted: the free HiveMQ and ntfy.sh servers that carry them can't read them, only the link can decrypt them.
+Créer l'image du trajet	Ritafbeelding maken	Create the ride image
+Créer la vidéo	Video maken	Create the video
+Créer le certificat de bridage (PDF)	Begrenzingscertificaat maken (pdf)	Create the speed-limit certificate (PDF)
+Créer le rapport d'incident (PDF)	Incidentrapport maken (pdf)	Create the incident report (PDF)
+Créer mon lien de suivi	Mijn volglink maken	Create my tracking link
+Dans 12 mois	Over 12 maanden	In 12 months
+Dans 3 mois	Over 3 maanden	In 3 months
+Dans 6 mois	Over 6 maanden	In 6 months
+Dans Réglages › Position, choisis « Toujours ».	Kies in Instellingen › Locatie « Altijd ».	In Settings › Location, choose « Always ».
+Date	Datum	Date
+Date souhaitée	Gewenste datum	Preferred date
+Demandes de RDV	Afspraakaanvragen	Appointment requests
+Demandes de rendez-vous	Afspraakaanvragen	Appointment requests
+Depuis	Sinds	Since
+Devis et factures	Offertes en facturen	Quotes and invoices
+Diagnostic	Diagnose	Diagnostics
+Disponibles	Beschikbaar	Available
+Documents	Documenten	Documents
+Dureté	Hardheid	Firmness
+Dès qu'une de ces roues s'allume, l'iPhone s'y connecte tout seul, même appli fermée ou téléphone verrouillé (sauf si tu as fermé l'appli en la balayant). La montre reçoit les données via l'iPhone : une roue n'accepte qu'une seule connexion Bluetooth.	Zodra een van deze wielen aangaat, verbindt de iPhone automatisch, zelfs met de app gesloten of de telefoon vergrendeld (behalve als je de app hebt weggeveegd). De watch krijgt de gegevens via de iPhone: een wiel aanvaardt maar één Bluetooth-verbinding.	As soon as one of these wheels turns on, the iPhone connects to it automatically, even with the app closed or the phone locked (unless you swiped the app away). The watch gets the data through the iPhone: a wheel accepts only one Bluetooth connection.
+Débridage par casque (cet iPhone)	Ontgrendelen via helm (deze iPhone)	Unlock with helmet (this iPhone)
+Débridages détectés	Gedetecteerde ontgrendelingen	Detected unlocks
+Débrider	Ontgrendelen	Unlock
+Débrider la roue ?	Wiel ontgrendelen?	Unlock the wheel?
+Début	Begin	Start
+Déconnecter	Verbreken	Disconnect
+Défi collectif	Gezamenlijke uitdaging	Group challenge
+Défi réussi ! 🎉	Uitdaging gehaald! 🎉	Challenge completed! 🎉
+Démarrer le test (60 s)	Test starten (60 s)	Start the test (60 s)
+Démarrer un trajet maintenant	Nu een rit starten	Start a ride now
+Désignation	Omschrijving	Description
+Détection de chute	Valdetectie	Fall detection
+E-mail	E-mail	Email
+Effacer le journal	Logboek wissen	Clear the log
+Emprunteur	Lener	Borrower
+Enregistrer	Opslaan	Save
+Enregistrer / partager la vidéo	Video opslaan / delen	Save / share the video
+Enregistrer et créer le PDF	Opslaan en pdf maken	Save and create the PDF
+Enregistrer la zone	Zone opslaan	Save the zone
+Enregistrer les trajets automatiquement	Ritten automatisch opnemen	Record rides automatically
+Enregistré dans 10 s (on garde aussi la suite).	Opgeslagen over 10 s (het vervolg wordt ook bewaard).	Saved in 10 s (what follows is kept too).
+Entretien	Onderhoud	Maintenance
+Entretien de la roue	Onderhoud van het wiel	Wheel maintenance
+Envoyer au client (e-mail, WhatsApp…)	Naar de klant sturen (e-mail, WhatsApp…)	Send to the customer (email, WhatsApp…)
+Envoyer autrement…	Anders versturen…	Send another way…
+Envoyer le lien (Messages, WhatsApp…)	Link versturen (Berichten, WhatsApp…)	Send the link (Messages, WhatsApp…)
+Envoyer par WhatsApp	Via WhatsApp versturen	Send via WhatsApp
+Envoyer par e-mail	Via e-mail versturen	Send by email
+Erreurs uniquement	Alleen fouten	Errors only
+Estimation à partir de la tension et du courant envoyés par la roue (le courant batterie est déduit du courant de phase et du PWM quand la roue ne l'envoie pas). C'est un indicateur de tendance, pas une mesure de laboratoire.	Schatting op basis van de spanning en stroom die het wiel doorstuurt (de batterijstroom wordt afgeleid uit de fasestroom en de PWM als het wiel hem niet stuurt). Het is een trendindicator, geen labometing.	Estimate based on the voltage and current sent by the wheel (battery current is derived from phase current and PWM when the wheel doesn't send it). It's a trend indicator, not a lab measurement.
+Exporter	Exporteren	Export
+Exporter en CSV	Exporteren als CSV	Export as CSV
+Facturation	Facturatie	Billing
+Facultatif, modifiable plus tard dans Réglages.	Optioneel, later te wijzigen in Instellingen.	Optional, you can change it later in Settings.
+Fait	Klaar	Done
+Fermer	Sluiten	Close
+Fiche diagnostic	Diagnosefiche	Diagnostic report
+Fiche diagnostic de la roue connectée	Diagnosefiche van het verbonden wiel	Diagnostic report for the connected wheel
+Figer les 60 dernières secondes	Laatste 60 seconden vastleggen	Freeze the last 60 seconds
+Fin	Einde	End
+Firmware	Firmware	Firmware
+Fond	Achtergrond	Background
+Fond vert : dans CapCut, ajoute la vidéo en incrustation puis « Supprimer l'arrière-plan › Clé chromatique ». Transparent : directement superposable dans iMovie, LumaFusion ou Final Cut.	Groene achtergrond: voeg in CapCut de video toe als overlay en kies « Achtergrond verwijderen › Chromakey ». Transparant: direct te overlappen in iMovie, LumaFusion of Final Cut.	Green background: in CapCut, add the video as an overlay, then « Remove background › Chroma key ». Transparent: overlay it directly in iMovie, LumaFusion or Final Cut.
+Format	Formaat	Format
+GYROCARE	GYROCARE	GYROCARE
+Historique	Geschiedenis	History
+Historique de cette roue	Geschiedenis van dit wiel	This wheel's history
+Historique des trajets	Rittengeschiedenis	Ride history
+IBAN pour les paiements	IBAN voor betalingen	IBAN for payments
+Icône	Pictogram	Icon
+InMotion : seule la P6 est gérée. La P6 ne communique pas sa limite actuelle : règle ta « Limite normale » ci-dessous avant le premier bridage pour pouvoir débrider ensuite.	InMotion: alleen de P6 wordt ondersteund. De P6 geeft zijn huidige limiet niet door: stel hieronder je « Normale limiet » in vóór de eerste begrenzing om daarna te kunnen ontgrendelen.	InMotion: only the P6 is supported. The P6 doesn't report its current limit: set your « Normal limit » below before the first limiting so you can unlock afterwards.
+Incident	Incident	Incident
+Incidents	Incidenten	Incidents
+Infos (horaires, consommation…)	Info (openingsuren, consumptie…)	Info (opening hours, food & drinks…)
+Installe-la ensuite comme d'habitude (Signulous, Sideloadly…). Tes réglages et trajets sont conservés.	Installeer ze daarna zoals gewoonlijk (Signulous, Sideloadly…). Je instellingen en ritten blijven bewaard.	Then install it as usual (Signulous, Sideloadly…). Your settings and rides are kept.
+Interventions	Interventies	Repairs
+Itinéraire	Route	Directions
+Itinéraire à pied	Wandelroute	Walking directions
+Je vais bien	Alles in orde	I'm OK
+Journal d'erreurs	Foutenlogboek	Error log
+Journal d'erreurs (Leaperkim)	Foutenlogboek (Leaperkim)	Error log (Leaperkim)
+Kilométrage	Kilometerstand	Mileage
+Klaxon	Claxon	Horn
+Klaxonner	Claxonneren	Honk
+Km parcourus	Afgelegde km	Km ridden
+La boîte noire garde en permanence la dernière minute de télémétrie. Elle se fige toute seule en cas de chute détectée, de coupure Bluetooth en roulant, de PWM au-delà de 90 %, de surchauffe ou de chute de tension anormale.	De zwarte doos bewaart altijd de laatste minuut telemetrie. Ze wordt automatisch vastgelegd bij een gedetecteerde val, een Bluetooth-onderbreking tijdens het rijden, PWM boven 90 %, oververhitting of een abnormale spanningsval.	The black box always keeps the last minute of telemetry. It freezes automatically on a detected fall, a Bluetooth drop while riding, PWM above 90 %, overheating or an abnormal voltage drop.
+La marge de sécurité est la réserve de puissance restante (100 % − PWM). Sous le seuil, les bips s'accélèrent et montent dans les aigus à mesure que la marge fond. Sans PWM envoyé par la roue, elle est estimée avec la vitesse max à pleine charge. Les alarmes vitesse et PWM de la roue utilisent les mêmes bips.	De veiligheidsmarge is de resterende vermogensreserve (100 % − PWM). Onder de drempel versnellen de piepjes en worden ze hoger naarmate de marge slinkt. Zonder PWM van het wiel wordt ze geschat met de topsnelheid bij volle batterij. De snelheids- en PWM-alarmen gebruiken dezelfde piepjes.	The safety margin is the remaining power reserve (100 % − PWM). Below the threshold, beeps speed up and rise in pitch as the margin shrinks. Without PWM from the wheel, it's estimated from the top speed at full charge. The speed and PWM alarms use the same beeps.
+La position est mémorisée chaque fois qu'une roue se déconnecte (GPS actif pendant le trajet).	De locatie wordt bewaard telkens een wiel de verbinding verbreekt (gps actief tijdens de rit).	The location is saved every time a wheel disconnects (GPS active during the ride).
+La roue doit rester connectée à l'iPhone pendant la charge. L'alerte température prévient aussi quand la température monte vite.	Het wiel moet tijdens het laden met de iPhone verbonden blijven. Het temperatuuralarm waarschuwt ook als de temperatuur snel stijgt.	The wheel must stay connected to the iPhone while charging. The temperature alert also warns when the temperature rises quickly.
+Lancer	Starten	Start
+Lancer un défi collectif pour ce mois	Gezamenlijke uitdaging starten voor deze maand	Start a group challenge for this month
+Le compteur et la batterie sont relevés au départ. Au retour, reconnecte la roue : l'appli calcule les km parcourus et relève les erreurs enregistrées par la roue pendant le prêt.	Kilometerstand en batterij worden bij vertrek genoteerd. Verbind het wiel opnieuw bij de terugkeer: de app berekent de afgelegde km en noteert de fouten die het wiel tijdens de uitlening heeft opgeslagen.	Odometer and battery are noted at departure. On return, reconnect the wheel: the app calculates the km ridden and lists the errors the wheel logged during the loan.
+Le dernier test de batterie sera ajouté à la fiche	De laatste batterijtest wordt aan de fiche toegevoegd	The latest battery test will be added to the report
+Le message contient un lien que l'atelier ouvre pour retrouver ta demande et le diagnostic de ta roue.	Het bericht bevat een link die de werkplaats opent om je aanvraag en de diagnose van je wiel te zien.	The message contains a link the workshop opens to find your request and your wheel's diagnostics.
+Le plus régulier	De meest regelmatige	Most consistent
+Le problème	Het probleem	The problem
+Le rappel prévient si la roue reste 2 semaines sans rouler à plus de 75 % ou moins de 35 % : stockée vers 50–60 %, la batterie vieillit moins vite.	De herinnering waarschuwt als het wiel 2 weken niet rijdt met meer dan 75 % of minder dan 35 %: opgeslagen rond 50–60 % veroudert de batterij trager.	The reminder warns if the wheel sits for 2 weeks above 75 % or below 35 %: stored around 50–60 %, the battery ages more slowly.
+Le total des kilomètres de tous les membres ce mois-ci.	Het totaal aan kilometers van alle leden deze maand.	Total kilometers of all members this month.
+Leaperkim/Nosfet, Begode et Kingsong sont reconnues automatiquement. Déconnecte d'abord toute autre appli, comme EUC World.	Leaperkim/Nosfet, Begode en Kingsong worden automatisch herkend. Verbreek eerst elke andere app, zoals EUC World.	Leaperkim/Nosfet, Begode and Kingsong are recognized automatically. First disconnect any other app, such as EUC World.
+Les infos de la roue (batterie, firmware, erreurs) seront jointes	De gegevens van het wiel (batterij, firmware, fouten) worden toegevoegd	The wheel's info (battery, firmware, errors) will be attached
+Les trajets démarrent tout seuls au-dessus de 3 km/h et s'arrêtent après 5 minutes d'arrêt.	Ritten starten vanzelf boven 3 km/u en stoppen na 5 minuten stilstand.	Rides start on their own above 3 km/h and stop after 5 minutes stopped.
+Lien de suivi	Volglink	Tracking link
+Ligne libre	Vrije regel	Custom line
+Lignes	Regels	Lines
+Limite	Limiet	Limit
+Limite actuelle	Huidige limiet	Current limit
+Limite envoyée à la roue quand le casque la débride. Sans casque, la roue reste à 25 km/h.	Limiet die naar het wiel wordt gestuurd als de helm het ontgrendelt. Zonder helm blijft het wiel op 25 km/u.	Limit sent to the wheel when the helmet unlocks it. Without the helmet, the wheel stays at 25 km/h.
+Lire le journal d'erreurs de la roue	Foutenlogboek van het wiel lezen	Read the wheel's error log
+Live Activity (Dynamic Island + montre)	Live Activity (Dynamic Island + watch)	Live Activity (Dynamic Island + watch)
+Lynx S : 36S (151,2 V). InMotion P6 : 56S (235,2 V). Corrigé automatiquement si la tension mesurée dépasse le pack choisi. Sur Begode, ce réglage sert aussi à calculer la tension. Le pourcentage est une estimation.	Lynx S: 36S (151,2 V). InMotion P6: 56S (235,2 V). Automatisch gecorrigeerd als de gemeten spanning het gekozen pakket overschrijdt. Bij Begode dient deze instelling ook om de spanning te berekenen. Het percentage is een schatting.	Lynx S: 36S (151.2 V). InMotion P6: 56S (235.2 V). Corrected automatically if the measured voltage exceeds the chosen pack. On Begode, this setting is also used to calculate the voltage. The percentage is an estimate.
+Marque	Merk	Brand
+Mes roues	Mijn wielen	My wheels
+Mesure	Meting	Measurement
+Mise à jour	Update	Update
+Mode EDM : 25 km/h, vitesse maximale des engins de déplacement motorisés autorisés sur la voie publique en Belgique	Modus GV: 25 km/u, maximumsnelheid voor gemotoriseerde voortbewegingstoestellen op de openbare weg in België	PLEV mode: 25 km/h, the maximum speed for personal light electric vehicles on public roads in Belgium
+Mode atelier	Werkplaatsmodus	Workshop mode
+Mode autorisé sur la voie publique en Belgique (engin de déplacement motorisé)	Modus toegestaan op de openbare weg in België (gemotoriseerd voortbewegingstoestel)	Mode allowed on public roads in Belgium (personal light electric vehicle)
+Modifier le défi	Uitdaging wijzigen	Edit the challenge
+Modèle	Model	Model
+Motif	Reden	Reason
+Ne pas toucher	Niet wijzigen	Don't change
+Nom	Naam	Name
+Nom (ex. Café du Parc)	Naam (bv. Café du Parc)	Name (e.g. Café du Parc)
+Nom (ex. centre-ville)	Naam (bv. centrum)	Name (e.g. city center)
+Nom (ex. huile roulements)	Naam (bv. lagervet)	Name (e.g. bearing grease)
+Nom de l'emprunteur	Naam van de lener	Borrower's name
+Nom du casque	Naam van de helm	Helmet name
+Nom du client	Naam van de klant	Customer name
+Nom du défi	Naam van de uitdaging	Challenge name
+Notification Brider / Débrider	Melding Begrenzen / Ontgrendelen	Limit / Unlock notification
+Nouveau code (4 à 6 chiffres)	Nieuwe code (4 tot 6 cijfers)	New code (4 to 6 digits)
+Nouveau devis	Nieuwe offerte	New quote
+Nouveau prêt	Nieuwe uitlening	New loan
+Nouveautés	Nieuw	What's new
+Nouvelle facture	Nieuwe factuur	New invoice
+Nouvelle prise	Nieuw stopcontact	New outlet
+Nouvelle version disponible	Nieuwe versie beschikbaar	New version available
+Nouvelle vitesse max	Nieuwe maximumsnelheid	New max speed
+Nouvelle zone	Nieuwe zone	New zone
+N° de TVA (ex. BE0123456789)	Btw-nummer (bv. BE0123456789)	VAT number (e.g. BE0123456789)
+OK	OK	OK
+Objectif (km)	Doel (km)	Goal (km)
+Ou touche la carte à l'endroit voulu. Les prises sont partagées avec ton club (chiffrées avec son code).	Of tik op de kaart op de gewenste plek. Stopcontacten worden gedeeld met je club (versleuteld met de clubcode).	Or tap the map at the desired spot. Outlets are shared with your club (encrypted with its code).
+Oublier	Vergeten	Forget
+Ouvrir les réglages iOS	iOS-instellingen openen	Open iOS Settings
+Où est ma roue ?	Waar is mijn wiel?	Where's my wheel?
+PDF	Pdf	PDF
+PWM	PWM	PWM
+PWM max	Max. PWM	Max PWM
+Pack batterie	Batterijpakket	Battery pack
+Paliers de batterie (10 %)	Batterijstappen (10 %)	Battery steps (10 %)
+Par défaut, débrider demande le code atelier Gyrocare. Sur l'iPhone de l'atelier, active ce réglage (avec le code) pour débrider sans code tes propres roues. Les roues bridées définitivement demandent toujours le code.	Standaard vraagt ontgrendelen de werkplaatscode van Gyrocare. Activeer deze instelling (met de code) op de iPhone van de werkplaats om je eigen wielen zonder code te ontgrendelen. Definitief begrensde wielen vragen altijd de code.	By default, unlocking asks for the Gyrocare workshop code. On the workshop iPhone, turn on this setting (with the code) to unlock your own wheels without a code. Permanently limited wheels always ask for the code.
+Partage en direct	Live delen	Live sharing
+Partager	Delen	Share
+Partager automatiquement pendant les trajets	Automatisch delen tijdens ritten	Share automatically during rides
+Partager dès que je roule	Delen zodra ik rijd	Share as soon as I ride
+Partager l'image du trajet	Ritafbeelding delen	Share the ride image
+Partager le CSV (toutes les données)	CSV delen (alle gegevens)	Share the CSV (all data)
+Partager le GPX	GPX delen	Share the GPX
+Partager le PDF	Pdf delen	Share the PDF
+Partager le certificat de bridage (PDF)	Begrenzingscertificaat delen (pdf)	Share the speed-limit certificate (PDF)
+Partager le rapport (PDF)	Rapport delen (pdf)	Share the report (PDF)
+Pas de relance	Geen herinnering	No reminder
+Passage du trajet	Fragment van de rit	Section of the ride
+Payée	Betaald	Paid
+Phare	Koplamp	Headlight
+Phare : allumé 10 min avant le coucher du soleil, éteint après le lever (calculé selon ta position). Un réglage manuel est respecté jusqu'au prochain changement jour/nuit.	Koplamp: aan 10 min vóór zonsondergang, uit na zonsopgang (berekend volgens je locatie). Een handmatige instelling blijft gelden tot de volgende dag/nacht-wissel.	Headlight: on 10 min before sunset, off after sunrise (calculated from your location). A manual setting is kept until the next day/night change.
+Phare automatique (coucher du soleil)	Automatische koplamp (zonsondergang)	Automatic headlight (sunset)
+Phare éteint	Koplamp uit	Headlight off
+Pièce ou prestation	Onderdeel of dienst	Part or service
+Plus forte chute / cellule	Grootste val / cel	Largest drop / cell
+Plus longue sortie	Langste rit	Longest ride
+Pour enregistrer le GPS téléphone verrouillé, autorise la localisation « Toujours ».	Sta locatie « Altijd » toe om gps op te nemen met vergrendelde telefoon.	To record GPS with the phone locked, allow location « Always ».
+Pour les roues des clients : pas de connexion automatique à tes roues, rien n'est mémorisé dans « Mes roues », aucun trajet enregistré.	Voor wielen van klanten: geen automatische verbinding met je wielen, niets bewaard in « Mijn wielen », geen ritten opgenomen.	For customers' wheels: no automatic connection to your wheels, nothing saved in « My wheels », no rides recorded.
+Prises partagées	Gedeelde stopcontacten	Shared outlets
+Prises partagées du club	Gedeelde stopcontacten van de club	Club's shared outlets
+Prix	Prijs	Price
+Prix HTVA	Prijs excl. btw	Price excl. VAT
+Prix du kWh	kWh-prijs	Price per kWh
+Prochaine révision	Volgende onderhoudsbeurt	Next service
+Profils de conduite	Rijprofielen	Riding profiles
+Prénom et nom	Voor- en achternaam	First and last name
+Préparer la demande	Aanvraag voorbereiden	Prepare the request
+Publiée le	Gepubliceerd op	Published on
+Pédales	Pedalen	Pedals
+Quitter la sortie	Rit verlaten	Leave the ride
+Rappel de stockage (2 semaines)	Opslagherinnering (2 weken)	Storage reminder (2 weeks)
+Rapport pour l'assurance	Rapport voor de verzekering	Report for the insurance
+Recherche des roues… Allume ta roue.	Wielen zoeken… Zet je wiel aan.	Searching for wheels… Turn on your wheel.
+Recommencer	Opnieuw	Start over
+Reconnecter mes roues	Mijn wielen opnieuw verbinden	Reconnect my wheels
+Records du mois	Records van de maand	Records of the month
+Rejoindre la sortie	Deelnemen aan de rit	Join the ride
+Rejouer	Afspelen	Replay
+Rejouer le trajet	Rit afspelen	Replay the ride
+Relances clients	Klantherinneringen	Customer reminders
+Remarques	Opmerkingen	Notes
+Remarques (circonstances, témoins…)	Opmerkingen (omstandigheden, getuigen…)	Notes (circumstances, witnesses…)
+Remettre la vitesse max à zéro	Topsnelheid resetten	Reset max speed
+Rendez-vous	Afspraak	Appointment
+Reporter d'1 mois	1 maand uitstellen	Postpone 1 month
+Repère indicatif : moins de 0,15 V de chute par cellule = bonne batterie, plus de 0,30 V = batterie fatiguée. Le courant mesuré est le courant de phase du moteur, pas celui de la batterie.	Richtwaarde: minder dan 0,15 V val per cel = goede batterij, meer dan 0,30 V = vermoeide batterij. De gemeten stroom is de fasestroom van de motor, niet die van de batterij.	Rule of thumb: less than 0.15 V drop per cell = good battery, more than 0.30 V = worn battery. The measured current is the motor phase current, not the battery current.
+Retour	Terug	Back
+Revenir à la disposition d'origine	Terug naar de oorspronkelijke indeling	Restore the original layout
+Roue	Wiel	Wheel
+Roue + téléphone	Wiel + telefoon	Wheel + phone
+Roue connectée	Wiel verbonden	Wheel connected
+Roue de prêt	Leenwiel	Loan wheel
+Roue introuvable	Wiel niet gevonden	Wheel not found
+Roue seulement	Alleen wiel	Wheel only
+Roues suivies	Opgevolgde wielen	Tracked wheels
+Roule quelques minutes avec des accélérations franches pour obtenir une mesure.	Rij enkele minuten met stevige versnellingen om een meting te krijgen.	Ride for a few minutes with firm accelerations to get a reading.
+Réglages	Instellingen	Settings
+Réglages avancés	Geavanceerde instellingen	Advanced settings
+Réglages avancés (montre, alarmes, diagnostic)	Geavanceerde instellingen (watch, alarmen, diagnose)	Advanced settings (watch, alarms, diagnostics)
+Réglages de la roue	Wielinstellingen	Wheel settings
+Réglages lus dans la roue	Instellingen gelezen uit het wiel	Settings read from the wheel
+Régler l'alarme PWM	PWM-alarm instellen	Set the PWM alarm
+Régler l'alarme de vitesse	Snelheidsalarm instellen	Set the speed alarm
+Régler la marge de sécurité	Veiligheidsmarge instellen	Set the safety margin
+Réparation et entretien de gyroroues	Herstelling en onderhoud van monowielen	Electric unicycle repair and servicing
+Résistance interne	Interne weerstand	Internal resistance
+Résultat	Resultaat	Result
+Résumé	Overzicht	Summary
+SMS	Sms	Text message
+Sans app montre : l'écran « À l'écoute » de la Watch affiche la vitesse. Lecture/Pause = brider ou débrider (appuie 2 fois pour confirmer), Suivant = klaxon, Précédent = annonce vocale. La télécommande met ta musique en pause tant que la roue est connectée : désactive-la si tu écoutes de la musique.	Zonder watch-app: het scherm « Speelt nu » van de Watch toont de snelheid. Afspelen/Pauze = begrenzen of ontgrendelen (druk 2 keer om te bevestigen), Volgende = claxon, Vorige = gesproken melding. De afstandsbediening pauzeert je muziek zolang het wiel verbonden is: schakel ze uit als je muziek luistert.	No watch app needed: the Watch's « Now Playing » screen shows your speed. Play/Pause = limit or unlock (press twice to confirm), Next = horn, Previous = voice announcement. The remote pauses your music while the wheel is connected: turn it off if you listen to music.
+Sans le casque, toutes les roues restent bridées à 25 km/h. Ces réglages n'existent que sur cet iPhone.	Zonder helm blijven alle wielen begrensd op 25 km/u. Deze instellingen bestaan alleen op deze iPhone.	Without the helmet, all wheels stay limited to 25 km/h. These settings exist only on this iPhone.
+Santé de la batterie	Batterijgezondheid	Battery health
+Session en cours	Huidige sessie	Current session
+Siri : « Appliquer un profil de conduite » dans Raccourcis, ou bouton Action › Raccourci › LynxDash.	Siri: « Rijprofiel toepassen » in Opdrachten, of Actieknop › Opdracht › LynxDash.	Siri: « Apply a riding profile » in Shortcuts, or Action button › Shortcut › LynxDash.
+Site web	Website	Website
+Son moteur virtuel	Virtueel motorgeluid	Virtual engine sound
+Sortie audio actuelle	Huidige audio-uitgang	Current audio output
+Sortie de groupe	Groepsrit	Group ride
+Style	Stijl	Style
+Sujet ntfy (envoi automatique)	ntfy-onderwerp (automatisch verzenden)	ntfy topic (automatic sending)
+Supprimer	Verwijderen	Delete
+Supprimer le code personnel	Persoonlijke code verwijderen	Remove the personal code
+Sur la P6, seuls la limite de vitesse et la télémétrie sont confirmés. Les autres réglages de l'appli InMotion (phares, son, pédales, verrouillage…) arriveront après une capture Bluetooth de l'appli officielle.	Op de P6 zijn enkel de snelheidslimiet en de telemetrie bevestigd. De andere instellingen van de InMotion-app (lichten, geluid, pedalen, vergrendeling…) volgen na een Bluetooth-opname van de officiële app.	On the P6, only the speed limit and telemetry are confirmed. The InMotion app's other settings (lights, sound, pedals, lock…) will come after a Bluetooth capture of the official app.
+Sécurité	Veiligheid	Safety
+Ta roue	Jouw wiel	Your wheel
+Tableau de bord	Dashboard	Dashboard
+Temps réel	Realtime	Live
+Températures : 	Temperaturen: 	Temperatures:
+Tension	Spanning	Voltage
+Tension (V) et courant (A)	Spanning (V) en stroom (A)	Voltage (V) and current (A)
+Tension au repos	Rustspanning	Resting voltage
+Tension mini	Min. spanning	Min voltage
+Tension mini en charge	Min. spanning onder belasting	Min voltage under load
+Tes amis entrent le même code (ex. gyro-bxl-7421). Seuls ton prénom et tes kilomètres du mois sont partagés, chiffrés avec le code du club.	Je vrienden voeren dezelfde code in (bv. gyro-bxl-7421). Alleen je voornaam en je kilometers van de maand worden gedeeld, versleuteld met de clubcode.	Your friends enter the same code (e.g. gyro-bxl-7421). Only your first name and this month's kilometers are shared, encrypted with the club code.
+Test de batterie	Batterijtest	Battery test
+Tester	Testen	Test
+Tester la connexion	Verbinding testen	Test the connection
+Tester les bips	Piepjes testen	Test the beeps
+Toi	Jij	You
+Ton contact sera prévenu dans	Je contact wordt verwittigd over	Your contact will be alerted in
+Ton prénom	Je voornaam	Your first name
+Ton prénom (affiché sur la carte)	Je voornaam (getoond op de kaart)	Your first name (shown on the map)
+Total HTVA	Totaal excl. btw	Total excl. VAT
+Total TVAC	Totaal incl. btw	Total incl. VAT
+Touche la carte pour placer une zone. En y entrant, la roue est bridée à 25 km/h au prochain arrêt. En sortant, elle retrouve sa limite habituelle au prochain arrêt.	Tik op de kaart om een zone te plaatsen. Bij het binnenrijden wordt het wiel bij de volgende stop begrensd op 25 km/u. Bij het buitenrijden krijgt het bij de volgende stop zijn gewone limiet terug.	Tap the map to place a zone. When you enter it, the wheel is limited to 25 km/h at the next stop. When you leave, it gets its usual limit back at the next stop.
+Touche pour voir les nouveautés	Tik om de nieuwigheden te zien	Tap to see what's new
+Toucher deux fois pour quitter	Tik twee keer om te verlaten	Tap twice to quit
+Tracé GPS	Gps-spoor	GPS track
+Trajets	Ritten	Rides
+Transformer en facture	Omzetten naar factuur	Convert to invoice
+Travaux réalisés	Uitgevoerde werken	Work done
+Tu recevras une notification le jour venu, et le client apparaîtra dans « Relances clients ».	Je krijgt een melding op de dag zelf, en de klant verschijnt bij « Klantherinneringen ».	You'll get a notification on the day, and the customer will appear in « Customer reminders ».
+Télécharger la nouvelle version (.ipa)	Nieuwe versie downloaden (.ipa)	Download the new version (.ipa)
+Télécharger le journal de la roue	Logboek van het wiel downloaden	Download the wheel's log
+Télécommande « À l'écoute »	Afstandsbediening « Speelt nu »	« Now Playing » remote
+Téléphone	Telefoon	Phone
+Téléphone du contact	Telefoon van het contact	Contact's phone
+Téléphone du contact (SMS)	Telefoon van het contact (sms)	Contact's phone (text)
+Téléphone seulement	Alleen telefoon	Phone only
+Un code personnel s'ajoute au code atelier (les deux fonctionnent). Il protège le débridage, l'antivol et la vitesse maximale. Stocké dans le trousseau sécurisé de l'iPhone.	Een persoonlijke code komt bovenop de werkplaatscode (beide werken). Ze beschermt het ontgrendelen, de antidiefstal en de maximumsnelheid. Bewaard in de beveiligde sleutelhanger van de iPhone.	A personal code adds to the workshop code (both work). It protects unlocking, the anti-theft and the max speed. Stored in the iPhone's secure keychain.
+Une résistance qui grimpe au fil des semaines signale des cellules qui vieillissent ou un connecteur qui chauffe.	Een weerstand die over de weken stijgt wijst op verouderende cellen of een connector die opwarmt.	A resistance that climbs over the weeks points to aging cells or a connector heating up.
+Valider	Bevestigen	Confirm
+Vert : batterie (%) · Rouge : température (°C)	Groen: batterij (%) · Rood: temperatuur (°C)	Green: battery (%) · Red: temperature (°C)
+Vibration PWM sur la montre (app montre)	PWM-trilling op de watch (watch-app)	PWM vibration on the watch (watch app)
+Vidéo de télémétrie à incruster	Telemetrievideo om te overlappen	Telemetry video to overlay
+Vidéo incrustée	Overlayvideo	Overlay video
+Vitesse	Snelheid	Speed
+Vitesse et PWM	Snelheid en PWM	Speed and PWM
+Vitesse max	Topsnelheid	Max speed
+Vitesse maximale et débridage	Maximumsnelheid en ontgrendelen	Max speed and unlocking
+Voir l'endroit	Plek bekijken	See the spot
+Voir l'endroit sur Plans	Plek bekijken in Kaarten	See the spot in Maps
+Volume	Volume	Volume
+Véhicule	Voertuig	Vehicle
+Vérifie la tension maximale de ta batterie (ex. Lynx S : 151,2 V).	Controleer de maximale spanning van je batterij (bv. Lynx S: 151,2 V).	Check your battery's maximum voltage (e.g. Lynx S: 151.2 V).
+Wh	Wh	Wh
+WhatsApp	WhatsApp	WhatsApp
+X1 Plus	X1 Plus	X1 Plus
+Zones	Zones	Zones
+Zones de bridage	Begrenzingszones	Speed-limit zones
+Zones de bridage GPS	Gps-begrenzingszones	GPS speed-limit zones
+ex. 1800	bv. 1800	e.g. 1800
+iPhone de l'atelier	iPhone van de werkplaats	Workshop iPhone
+incident	incident	incident
+km/h	km/u	km/h
+« Partager dès que je roule » : le partage démarre tout seul quand la roue dépasse 3 km/h, et s'arrête tout seul 1 minute après la déconnexion de la roue. Le lien reste le même d'un trajet à l'autre : envoie-le une fois à ta femme et garde-le en favori. Elle voit ta position, ton tracé, ta vitesse et ta batterie, mises à jour toutes les 5 secondes, uniquement quand le partage est actif.	« Delen zodra ik rijd »: het delen start vanzelf als het wiel sneller gaat dan 3 km/u en stopt vanzelf 1 minuut nadat het wiel de verbinding verbreekt. De link blijft dezelfde van rit tot rit: stuur hem één keer door en bewaar hem als favoriet. Je ziet locatie, spoor, snelheid en batterij, elke 5 seconden bijgewerkt, alleen wanneer het delen actief is.	« Share as soon as I ride »: sharing starts on its own when the wheel goes above 3 km/h, and stops on its own 1 minute after the wheel disconnects. The link stays the same from ride to ride: send it once and keep it as a favorite. It shows your location, track, speed and battery, updated every 5 seconds, only while sharing is on.
+À surveiller	Op te volgen	Keep an eye on
+Écran verrouillé et Apple Watch	Vergrendelscherm en Apple Watch	Lock screen and Apple Watch
+État	Status	Status
+État au départ (rayures, pneu…)	Staat bij vertrek (krassen, band…)	Condition at departure (scratches, tire…)
+État estimé	Geschatte staat	Estimated condition

@@ -1,0 +1,4 @@
+"NSBluetoothAlwaysUsageDescription" = "LynxDash gebruikt Bluetooth om de telemetrie van je monowiel te lezen.";
+"NSLocationWhenInUseUsageDescription" = "LynxDash neemt het gps-spoor van je ritten op, beheert de begrenzingszones en stuurt je locatie naar je contact bij een val.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "Om je ritten op te nemen, de begrenzingszones te beheren en een val te detecteren, ook met vergrendelde telefoon.";
+"NSPhotoLibraryAddUsageDescription" = "Om de afbeelding van je ritten op te slaan.";

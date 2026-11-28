@@ -1,0 +1,4 @@
+"NSBluetoothAlwaysUsageDescription" = "LynxDash uses Bluetooth to read your electric unicycle's telemetry.";
+"NSLocationWhenInUseUsageDescription" = "LynxDash records the GPS track of your rides, manages speed-limit zones and sends your location to your contact after a fall.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "To record your rides, manage speed-limit zones and detect a fall, even with the phone locked.";
+"NSPhotoLibraryAddUsageDescription" = "To save the image of your rides.";
