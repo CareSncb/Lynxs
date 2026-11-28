@@ -86,7 +86,18 @@ final class InMotionProtocol: WheelProtocol {
 
     let supportsSpecialLight = false
     let specialLightLabel = ""
-    func lightCommands(_ mode: LightMode) -> [WheelCommand] { [] }
+
+    /// Phare (WheelLog, InMotion V2) : 60 50 <0|1>, envoyé dans la file requête / réponse.
+    func lightCommands(_ mode: LightMode) -> [WheelCommand] {
+        writeQueue.append((InMotionProtocol.frame(flags: 0x14, data: [0x60, 0x50, mode == .off ? 0 : 1]), nil))
+        return []
+    }
+
+    /// Klaxon (WheelLog, InMotion V2, famille V13 / V14 dont la P6 est la plus proche) : 60 51 02 64.
+    func hornCommands() -> [WheelCommand] {
+        writeQueue.append((InMotionProtocol.frame(flags: 0x14, data: [0x60, 0x51, 0x02, 0x64]), nil))
+        return [WheelCommand([])]   // non vide : signale que la roue gère le klaxon
+    }
     func pedalsCommands(_ mode: PedalsMode) -> [WheelCommand] { [] }
 
     // MARK: - Réception

@@ -108,7 +108,17 @@ final class BLEManager: NSObject, ObservableObject {
     }
 
     /// Si la limite a été remontée hors de LynxDash (appli du fabricant…), on rebride au prochain arrêt.
+    private var lastBlindReassert = Date.distantPast
+
     private func enforcePermanentLimit(_ d: WheelData) {
+        // InMotion P6 : la roue ne renvoie pas sa limite, impossible de voir un débridage fait
+        // ailleurs. On renvoie donc 25 km/h à l'arrêt, à la connexion puis toutes les 2 minutes.
+        if isPermanentlyLimited, activeBrand == .inmotion, let p = proto, connectionBlockReason == nil,
+           abs(d.speed) < BLEManager.stopSpeed, pendingAction == nil, !limiterBusy,
+           Date().timeIntervalSince(lastBlindReassert) > 120 {
+            lastBlindReassert = Date()
+            send(p.speedLimitCommands(kmh: BLEManager.restrictedLimit))
+        }
         guard isPermanentlyLimited, pendingAction == nil, !limiterBusy,
               Date().timeIntervalSince(lastPermanentEnforce) > 30 else { return }
         let tooHigh = d.speedLimitKnown && d.speedLimit > Double(BLEManager.restrictedLimit) + 0.5
@@ -219,6 +229,7 @@ final class BLEManager: NSObject, ObservableObject {
         cellCount = cells
         applyingProfile = false
         engagedThisConnection = false
+        lastBlindReassert = .distantPast
         refreshLockState()
         p.cellCount = cells
         (p as? InMotionProtocol)?.restoreKnownLimit()
@@ -393,7 +404,6 @@ final class BLEManager: NSObject, ObservableObject {
         send(p.lightCommands(mode))
     }
 
-    var supportsWheelHorn: Bool { !(proto?.hornCommands().isEmpty ?? true) }
 
     /// Fait biper la roue. Renvoie false si la marque ne le permet pas.
     @discardableResult
@@ -518,7 +528,7 @@ final class BLEManager: NSObject, ObservableObject {
     }
 
     private func write(_ bytes: [UInt8]) {
-        guard let p = peripheral, let c = writeCharacteristic ?? characteristic else { return }
+        guard !bytes.isEmpty, let p = peripheral, let c = writeCharacteristic ?? characteristic else { return }
         let type: CBCharacteristicWriteType =
             c.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
         p.writeValue(Data(bytes), for: c, type: type)

@@ -43,17 +43,18 @@ final class VeteranDecoder: WheelProtocol {
     let specialLightLabel = ""
 
     func lightCommands(_ mode: LightMode) -> [WheelCommand] {
+        // Comme WheelLog (open source) : commande texte pour TOUS les modèles, Lynx / Lynx S compris.
+        // (L'ancienne trame « LkAp 107 » n'était pas la bonne.)
         let on = mode != .off
-        if last.newProtocol {
-            return [WheelCommand(VeteranDecoder.command(107, payload: [0x01, 0x80, 0x80, on ? 1 : 0]))]
-        }
         return [WheelCommand(Array((on ? "SetLightON" : "SetLightOFF").utf8))]
     }
 
     /// Bip de la roue (repris de WheelLog, open source) :
     /// nouveau protocole → 4C 6B 41 70 0E 00 80 80 80 01 + CRC32 (CA 87 E6 6F), ancien → « b ».
     func hornCommands() -> [WheelCommand] {
-        if last.newProtocol {
+        // Choix selon le numéro de modèle (firmware / 1000) comme WheelLog : ≥ 3 → trame LkAp
+        // (Sherman S, Patton, Lynx = 5, Lynx S = 9, Oryx, Nosfet…), sinon « b ».
+        if last.firmwareRaw / 1000 >= 3 || last.newProtocol {
             return [WheelCommand(VeteranDecoder.command(107, payload: [0x00, 0x80, 0x80, 0x80, 0x01]))]
         }
         return [WheelCommand(Array("b".utf8))]
