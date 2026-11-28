@@ -109,25 +109,53 @@ final class BLEManager: NSObject, ObservableObject {
 
     /// Si la limite a été remontée hors de LynxDash (appli du fabricant…), on rebride au prochain arrêt.
     private var lastBlindReassert = Date.distantPast
+    private var lastEnforceNotice = Date.distantPast
 
+    /// Vitesse sous laquelle on peut renvoyer 25 km/h sans risque : la roue roule déjà
+    /// moins vite que la nouvelle limite, donc aucun basculement (tiltback) brutal.
+    static let safeRebridleSpeed = 23.0
+
+    /// Bridage définitif : si la limite remonte (DarknessBot, appli officielle, réglage
+    /// fait sur la roue…), on renvoie 25 km/h aussitôt — tout de suite sous 23 km/h,
+    /// sinon dès que la vitesse redescend sous 23 km/h.
     private func enforcePermanentLimit(_ d: WheelData) {
-        // InMotion P6 : la roue ne renvoie pas sa limite, impossible de voir un débridage fait
-        // ailleurs. On renvoie donc 25 km/h à l'arrêt, à la connexion puis toutes les 2 minutes.
-        if isPermanentlyLimited, activeBrand == .inmotion, let p = proto, connectionBlockReason == nil,
-           abs(d.speed) < BLEManager.stopSpeed, pendingAction == nil, !limiterBusy,
-           Date().timeIntervalSince(lastBlindReassert) > 120 {
-            lastBlindReassert = Date()
-            send(p.speedLimitCommands(kmh: BLEManager.restrictedLimit))
+        guard isPermanentlyLimited, let p = proto, connectionBlockReason == nil, !limiterBusy else { return }
+        let now = Date()
+        let slowEnough = abs(d.speed) < BLEManager.safeRebridleSpeed
+
+        // InMotion P6 : la roue ne renvoie pas sa limite → on la réaffirme toutes les 15 s
+        if activeBrand == .inmotion {
+            if slowEnough, now.timeIntervalSince(lastBlindReassert) > 15 {
+                lastBlindReassert = now
+                send(p.speedLimitCommands(kmh: BLEManager.restrictedLimit))
+            }
+            return
         }
-        guard isPermanentlyLimited, pendingAction == nil, !limiterBusy,
-              Date().timeIntervalSince(lastPermanentEnforce) > 30 else { return }
+
         let tooHigh = d.speedLimitKnown && d.speedLimit > Double(BLEManager.restrictedLimit) + 0.5
         let unknownOnce = !d.speedLimitKnown && !engagedThisConnection
         guard tooHigh || unknownOnce else { return }
-        lastPermanentEnforce = Date()
+
+        guard slowEnough else {
+            if now.timeIntervalSince(lastEnforceNotice) > 20 {
+                lastEnforceNotice = now
+                limiterMessage = "Limite modifiée : rebridage à 25 km/h dès que tu passes sous 23 km/h"
+            }
+            return
+        }
+        // Une commande toutes les 3 s au plus (le temps que la roue confirme)
+        guard now.timeIntervalSince(lastPermanentEnforce) > 3 else { return }
+        lastPermanentEnforce = now
         engagedThisConnection = true
-        limiterMessage = "Bridage d'office à 25 km/h (réglementation belge) au prochain arrêt"
-        Task { @MainActor in _ = await self.engageLimiter() }
+        scheduledLimit = nil
+        send(p.speedLimitCommands(kmh: BLEManager.restrictedLimit))
+        limiterMessage = PinLock.lockedMessage
+        if tooHigh, now.timeIntervalSince(lastEnforceNotice) > 60 {
+            lastEnforceNotice = now
+            SafetyMonitor.shared.notify(title: "Bridage définitif",
+                                        body: String(format: "Limite modifiée hors de l'appli (%.0f km/h) : roue rebridée à 25 km/h.", d.speedLimit))
+            VoiceAnnouncer.shared.speak("Limite modifiée, rebridage à 25", urgent: true)
+        }
     }
     var crcFailures: Int { proto?.crcFailures ?? 0 }
     var rejectedFrames: Int { proto?.rejectedFrames ?? 0 }
