@@ -7,6 +7,9 @@ struct LynxWidgetBundle: WidgetBundle {
     var body: some Widget {
         LynxLiveActivity()
         LynxHomeWidget()
+        HornControl()
+        LightControl()
+        ShareControl()
     }
 }
 

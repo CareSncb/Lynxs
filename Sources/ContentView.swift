@@ -6,6 +6,7 @@ struct RootView: View {
     @EnvironmentObject var ble: BLEManager
     @ObservedObject private var safety = SafetyMonitor.shared
     @AppStorage("onboardingDone") private var onboardingDone = false
+    @ObservedObject private var fleet = FleetSync.shared
 
     var body: some View {
         ZStack {
@@ -34,6 +35,10 @@ struct RootView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: onboardingDone)
         .onAppear { UpdateChecker.shared.checkIfNeeded() }
+        // Association au suivi de l'atelier (lien lynxdash://pair)
+        .sheet(isPresented: Binding(get: { fleet.pendingPairing != nil }, set: { if !$0 { fleet.pendingPairing = nil } })) {
+            FleetConsentView()
+        }
     }
 }
 
@@ -346,6 +351,7 @@ struct ContentView: View {
 struct WheelSettingsView: View {
     @EnvironmentObject var ble: BLEManager
     @Environment(\.dismiss) private var dismiss
+    @State private var showControlScreen = false
 
     var body: some View {
         List {
@@ -367,6 +373,7 @@ struct WheelSettingsView: View {
                 NavigationLink { BatteryCellsView() } label: { Label("Cellules de la batterie", systemImage: "battery.100percent") }
                 NavigationLink { BlackBoxListView() } label: { Label("Boîte noire", systemImage: "record.circle") }
                 CertificateButton()
+                Button { showControlScreen = true } label: { Label("Écran Contrôle (police)", systemImage: "checkmark.shield") }
                 NavigationLink { AppointmentRequestView() } label: { Label("Rendez-vous chez \(Business.name)", systemImage: "calendar.badge.plus") }
             }
             if ble.activeBrand == .inmotion {
@@ -378,6 +385,7 @@ struct WheelSettingsView: View {
         }
         .themedList()
         .navigationTitle("Réglages de la roue")
+        .fullScreenCover(isPresented: $showControlScreen) { ControlScreenView().environmentObject(ble) }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("OK") { dismiss() } } }
     }
@@ -749,6 +757,7 @@ struct AntiTheftCard: View {
 /// Bandeau affiché quand la roue est bloquée à 25 km/h.
 struct PermanentLimitBadge: View {
     @EnvironmentObject var ble: BLEManager
+    @State private var showControl = false
 
     private var status: String {
         guard ble.state == .connected else { return "Roue non connectée" }
@@ -777,6 +786,9 @@ struct PermanentLimitBadge: View {
                                    startPoint: .leading, endPoint: .trailing),
                     in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Color.green.opacity(0.5)))
+        .contentShape(Rectangle())
+        .onTapGesture { showControl = true }
+        .fullScreenCover(isPresented: $showControl) { ControlScreenView().environmentObject(ble) }
     }
 }
 
@@ -835,6 +847,8 @@ struct AtelierHiddenView: View {
                     NavigationLink { TripHistoryView() } label: { Label("Historique des trajets", systemImage: "map") }
                     NavigationLink { AdvancedSettingsView() } label: { Label("Réglages avancés (montre, alarmes, diagnostic)", systemImage: "gearshape.2") }
                     NavigationLink { ZonesView() } label: { Label("Zones de bridage GPS", systemImage: "mappin.and.ellipse") }
+                    NavigationLink { ClientFileListView() } label: { Label("Fiches clients", systemImage: "person.crop.rectangle.stack") }
+                    NavigationLink { FleetView() } label: { Label("Roues des clients (suivi à distance)", systemImage: "dot.radiowaves.left.and.right") }
                     NavigationLink { TamperLogView() } label: { Label("Débridages détectés", systemImage: "exclamationmark.shield") }
                     NavigationLink { LoanView() } label: { Label("Roue de prêt", systemImage: "arrow.left.arrow.right.circle") }
                     NavigationLink { BatteryCellsView() } label: { Label("Cellules de la batterie", systemImage: "battery.100percent") }

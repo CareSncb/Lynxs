@@ -37,6 +37,9 @@ struct TripsView: View {
                     NavigationLink { GroupRideView() } label: {
                         Label("Sortie de groupe", systemImage: "person.3.fill")
                     }
+                    NavigationLink { RangeCheckView() } label: {
+                        Label("Est-ce que j'y arrive ?", systemImage: "fuelpump.fill")
+                    }
                     NavigationLink { LeaderboardView() } label: {
                         Label("Classement et défis entre amis", systemImage: "trophy.fill")
                     }

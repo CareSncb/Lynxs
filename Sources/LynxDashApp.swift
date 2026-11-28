@@ -8,6 +8,7 @@ struct LynxDashApp: App {
         PhoneWatchBridge.shared.activate()
         LimiterNotification.shared.activate()
         _ = HelmetTrigger.shared
+        ControlActions.handler = { cmd in await ControlHandler.run(cmd) }
         SafetyMonitor.shared.requestNotificationPermission()
         TripRecorder.shared.requestPermission()
         _ = TripStore.shared
@@ -31,6 +32,8 @@ struct LynxDashApp: App {
                             ble.limiterMessage = o.message(for: .release)
                         case "basculer", "toggle":
                             ble.limiterMessage = await LimiterToggle.run()
+                        case "pair":
+                            if !FleetSync.shared.handlePairLink(url) { ble.limiterMessage = "Lien d'association illisible" }
                         case "rdv":
                             ble.limiterMessage = AppointmentStore.shared.importLink(url)
                                 ? "Demande de rendez-vous ajoutée dans le menu atelier ✓"
